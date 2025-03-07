@@ -1,0 +1,374 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 17.2
+-- Dumped by pg_dump version 17.2
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: deductions; Type: TABLE; Schema: public; Owner: wushu
+--
+
+CREATE TABLE public.deductions (
+    deduction_id integer NOT NULL,
+    deduction_category text NOT NULL,
+    deduction_criteria text NOT NULL,
+    deduction_description text NOT NULL,
+    deduction_value numeric(3,1) NOT NULL,
+    CONSTRAINT deductions_deduction_value_check CHECK (((deduction_value >= 0.0) AND (deduction_value <= 5.0)))
+);
+
+
+ALTER TABLE public.deductions OWNER TO wushu;
+
+--
+-- Name: deductions_deduction_id_seq; Type: SEQUENCE; Schema: public; Owner: wushu
+--
+
+CREATE SEQUENCE public.deductions_deduction_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.deductions_deduction_id_seq OWNER TO wushu;
+
+--
+-- Name: deductions_deduction_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: wushu
+--
+
+ALTER SEQUENCE public.deductions_deduction_id_seq OWNED BY public.deductions.deduction_id;
+
+
+--
+-- Name: participant_deductions; Type: TABLE; Schema: public; Owner: wushu
+--
+
+CREATE TABLE public.participant_deductions (
+    id integer NOT NULL,
+    participant_id integer,
+    deduction_id integer,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    judge character varying(2),
+    CONSTRAINT participant_deductions_judge_check CHECK (((judge)::text = ANY ((ARRAY['A1'::character varying, 'A2'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.participant_deductions OWNER TO wushu;
+
+--
+-- Name: participant_deductions_id_seq; Type: SEQUENCE; Schema: public; Owner: wushu
+--
+
+CREATE SEQUENCE public.participant_deductions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.participant_deductions_id_seq OWNER TO wushu;
+
+--
+-- Name: participant_deductions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: wushu
+--
+
+ALTER SEQUENCE public.participant_deductions_id_seq OWNED BY public.participant_deductions.id;
+
+
+--
+-- Name: participants; Type: TABLE; Schema: public; Owner: wushu
+--
+
+CREATE TABLE public.participants (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    school character varying(255) NOT NULL,
+    division character varying(100) NOT NULL
+);
+
+
+ALTER TABLE public.participants OWNER TO wushu;
+
+--
+-- Name: participants_id_seq; Type: SEQUENCE; Schema: public; Owner: wushu
+--
+
+CREATE SEQUENCE public.participants_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.participants_id_seq OWNER TO wushu;
+
+--
+-- Name: participants_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: wushu
+--
+
+ALTER SEQUENCE public.participants_id_seq OWNED BY public.participants.id;
+
+
+--
+-- Name: scores; Type: TABLE; Schema: public; Owner: wushu
+--
+
+CREATE TABLE public.scores (
+    id integer NOT NULL,
+    participant_id integer,
+    judge character varying(5) NOT NULL,
+    score numeric(3,1) NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT scores_judge_check CHECK (((judge)::text = ANY ((ARRAY['A1'::character varying, 'A2'::character varying, 'B1'::character varying, 'B2'::character varying])::text[]))),
+    CONSTRAINT scores_score_check CHECK (((score >= (0)::numeric) AND (score <= (5)::numeric)))
+);
+
+
+ALTER TABLE public.scores OWNER TO wushu;
+
+--
+-- Name: scores_id_seq; Type: SEQUENCE; Schema: public; Owner: wushu
+--
+
+CREATE SEQUENCE public.scores_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.scores_id_seq OWNER TO wushu;
+
+--
+-- Name: scores_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: wushu
+--
+
+ALTER SEQUENCE public.scores_id_seq OWNED BY public.scores.id;
+
+
+--
+-- Name: tournament_details; Type: TABLE; Schema: public; Owner: wushu
+--
+
+CREATE TABLE public.tournament_details (
+    argument character varying(50) NOT NULL,
+    value integer NOT NULL
+);
+
+
+ALTER TABLE public.tournament_details OWNER TO wushu;
+
+--
+-- Name: deductions deduction_id; Type: DEFAULT; Schema: public; Owner: wushu
+--
+
+ALTER TABLE ONLY public.deductions ALTER COLUMN deduction_id SET DEFAULT nextval('public.deductions_deduction_id_seq'::regclass);
+
+
+--
+-- Name: participant_deductions id; Type: DEFAULT; Schema: public; Owner: wushu
+--
+
+ALTER TABLE ONLY public.participant_deductions ALTER COLUMN id SET DEFAULT nextval('public.participant_deductions_id_seq'::regclass);
+
+
+--
+-- Name: participants id; Type: DEFAULT; Schema: public; Owner: wushu
+--
+
+ALTER TABLE ONLY public.participants ALTER COLUMN id SET DEFAULT nextval('public.participants_id_seq'::regclass);
+
+
+--
+-- Name: scores id; Type: DEFAULT; Schema: public; Owner: wushu
+--
+
+ALTER TABLE ONLY public.scores ALTER COLUMN id SET DEFAULT nextval('public.scores_id_seq'::regclass);
+
+
+--
+-- Data for Name: deductions; Type: TABLE DATA; Schema: public; Owner: wushu
+--
+
+COPY public.deductions (deduction_id, deduction_category, deduction_criteria, deduction_description, deduction_value) FROM stdin;
+1	Hand Forms/Shape	Fist	* Face of fist uneven\n* Thumb not pressing on second segment of middle finger	0.1
+2	Hand Forms/Shape	Sword Finger	* Supporting leg bent\n* Raised leg bent	0.3
+3	Hand Forms/Shape	Palm	* Four fingers not straight and together\n* Thumb is not bent in tightly	0.1
+4	Hand Forms/Shape	Hook	* Five fingers not pinched together\n* Wrist not hooked completely	0.1
+\.
+
+
+--
+-- Data for Name: participant_deductions; Type: TABLE DATA; Schema: public; Owner: wushu
+--
+
+COPY public.participant_deductions (id, participant_id, deduction_id, created_at, judge) FROM stdin;
+1	3	1	2025-02-20 03:12:42.81595	A1
+2	3	4	2025-02-20 03:12:51.454511	A1
+3	3	1	2025-02-20 03:13:18.759542	A2
+8	3	2	2025-02-20 03:17:31.311176	A2
+14	5	1	2025-02-20 03:50:25.40272	A1
+15	5	1	2025-02-20 03:50:27.762947	A1
+16	5	3	2025-02-20 03:50:32.296349	A1
+17	5	2	2025-02-20 03:50:34.330336	A1
+\.
+
+
+--
+-- Data for Name: participants; Type: TABLE DATA; Schema: public; Owner: wushu
+--
+
+COPY public.participants (id, name, school, division) FROM stdin;
+1	Ricardo Setti	WTA	Southern Traditional Weapon
+2	Alice Lobo	WTA	Northern Spear
+3	Nolan Leyesa	WTA	Northern Bare Hands
+4	Kevin Torres	Perth Amboy Martial Arts	Northern Bare Hands
+5	Scott Raff	Perth Amboy Martial Arts	Southern Traditional Weapon
+\.
+
+
+--
+-- Data for Name: scores; Type: TABLE DATA; Schema: public; Owner: wushu
+--
+
+COPY public.scores (id, participant_id, judge, score, created_at) FROM stdin;
+1	4	B1	2.5	2025-02-19 03:21:54.62767
+16	3	A2	4.7	2025-02-20 03:17:34.721705
+17	5	A2	4.7	2025-02-20 03:41:08.844364
+18	5	A1	4.4	2025-02-20 03:41:28.251313
+19	5	A1	3.8	2025-02-20 03:50:38.78287
+\.
+
+
+--
+-- Data for Name: tournament_details; Type: TABLE DATA; Schema: public; Owner: wushu
+--
+
+COPY public.tournament_details (argument, value) FROM stdin;
+Active_ID	5
+OnDeck_ID	1
+\.
+
+
+--
+-- Name: deductions_deduction_id_seq; Type: SEQUENCE SET; Schema: public; Owner: wushu
+--
+
+SELECT pg_catalog.setval('public.deductions_deduction_id_seq', 4, true);
+
+
+--
+-- Name: participant_deductions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: wushu
+--
+
+SELECT pg_catalog.setval('public.participant_deductions_id_seq', 17, true);
+
+
+--
+-- Name: participants_id_seq; Type: SEQUENCE SET; Schema: public; Owner: wushu
+--
+
+SELECT pg_catalog.setval('public.participants_id_seq', 5, true);
+
+
+--
+-- Name: scores_id_seq; Type: SEQUENCE SET; Schema: public; Owner: wushu
+--
+
+SELECT pg_catalog.setval('public.scores_id_seq', 19, true);
+
+
+--
+-- Name: deductions deductions_pkey; Type: CONSTRAINT; Schema: public; Owner: wushu
+--
+
+ALTER TABLE ONLY public.deductions
+    ADD CONSTRAINT deductions_pkey PRIMARY KEY (deduction_id);
+
+
+--
+-- Name: participant_deductions participant_deductions_pkey; Type: CONSTRAINT; Schema: public; Owner: wushu
+--
+
+ALTER TABLE ONLY public.participant_deductions
+    ADD CONSTRAINT participant_deductions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: participants participants_pkey; Type: CONSTRAINT; Schema: public; Owner: wushu
+--
+
+ALTER TABLE ONLY public.participants
+    ADD CONSTRAINT participants_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: scores scores_pkey; Type: CONSTRAINT; Schema: public; Owner: wushu
+--
+
+ALTER TABLE ONLY public.scores
+    ADD CONSTRAINT scores_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tournament_details tournament_details_pkey; Type: CONSTRAINT; Schema: public; Owner: wushu
+--
+
+ALTER TABLE ONLY public.tournament_details
+    ADD CONSTRAINT tournament_details_pkey PRIMARY KEY (argument);
+
+
+--
+-- Name: participant_deductions participant_deductions_deduction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: wushu
+--
+
+ALTER TABLE ONLY public.participant_deductions
+    ADD CONSTRAINT participant_deductions_deduction_id_fkey FOREIGN KEY (deduction_id) REFERENCES public.deductions(deduction_id) ON DELETE CASCADE;
+
+
+--
+-- Name: participant_deductions participant_deductions_participant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: wushu
+--
+
+ALTER TABLE ONLY public.participant_deductions
+    ADD CONSTRAINT participant_deductions_participant_id_fkey FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE;
+
+
+--
+-- Name: scores scores_participant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: wushu
+--
+
+ALTER TABLE ONLY public.scores
+    ADD CONSTRAINT scores_participant_id_fkey FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE;
+
+
+--
+-- PostgreSQL database dump complete
+--
+
