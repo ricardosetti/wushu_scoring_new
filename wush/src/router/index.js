@@ -1,10 +1,10 @@
 import { createRouter, createWebHistory } from "vue-router";
-import JudgeA1 from "@/views/JudgeA1.vue";
-import JudgeA2 from "@/views/JudgeA2.vue";
-import JudgeB1 from "@/views/JudgeB1.vue";
-import JudgeB2 from "@/views/JudgeB2.vue";
-import HeadJudge from "@/views/HeadJudge.vue";
-import Scoreboard from "@/views/Scoreboard.vue";
+import JudgeA1 from "../views/JudgeA1.vue";
+import JudgeA2 from "../views/JudgeA2.vue";
+import JudgeB1 from "../views/JudgeB1.vue";
+import JudgeB2 from "../views/JudgeB2.vue";
+import HeadJudge from "../views/HeadJudge.vue";
+import Scoreboard from "../views/Scoreboard.vue";
 
 const routes = [
   { path: "/judge-a1", component: JudgeA1 },

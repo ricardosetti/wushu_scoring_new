@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
+import dotenv from 'dotenv';
 import { createServer } from "http";
 import { Server } from "socket.io";
 import participantRoutes from "./routes/participantRoutes.js";
@@ -18,13 +18,13 @@ const port = 5000;
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:5174"], // Allow both ports
+    origin: "*", // Allow both ports
     methods: ["GET", "POST"],
   },
 });
 
 app.use(cors({
-  origin: ["http://localhost:5173", "http://localhost:5174"], // Match for HTTP requests
+  origin: "*", // Match for HTTP requests
 }));
 app.use(express.json());
 

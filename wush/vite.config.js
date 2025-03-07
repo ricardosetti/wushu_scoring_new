@@ -1,21 +1,12 @@
-import { fileURLToPath, URL } from 'node:url'
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
 
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import vueDevTools from 'vite-plugin-vue-devtools'
-
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [
-    vue(),
-    vueDevTools(),
-  ],
-  css: {
-    postcss: './postcss.config.js',
+  plugins: [vue()],
+  base: '/', // Ensure base path is correct
+  build: {
+    outDir: 'dist', // Output directory for production build
+    assetsDir: 'assets',
+    minify: true, // Minify for production
   },
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
-    },
-  },
-})
+});

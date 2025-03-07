@@ -3,6 +3,6 @@
   </template>
   
   <script setup>
-  import JudgesPanel from "@/components/JudgesPanel.vue";
+  import JudgesPanel from "../components/JudgesPanel.vue";
   </script>
   
