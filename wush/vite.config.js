@@ -3,10 +3,14 @@ import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
   plugins: [vue()],
-  base: '/', // Ensure base path is correct
+  define: {
+    'process.env.VITE_SERVER_HOST': JSON.stringify(process.env.VITE_SERVER_HOST || 'localhost'),
+    'process.env.VITE_SERVER_PORT': JSON.stringify(process.env.VITE_SERVER_PORT || '5000'),
+  },
+  base: '/',
   build: {
-    outDir: 'dist', // Output directory for production build
+    outDir: 'dist',
     assetsDir: 'assets',
-    minify: true, // Minify for production
+    minify: true,
   },
 });

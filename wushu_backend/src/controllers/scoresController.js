@@ -11,8 +11,12 @@ export const fetchScores = async (req, res) => {
 
 export const createScore = async (req, res) => {
   const { participant_id, judge, score } = req.body;
+  if (!participant_id || !judge || score === undefined || score === null || isNaN(score)) {
+    return res.status(400).json({ error: "Missing or invalid fields (participant_id, judge, score)" });
+  }
   try {
     const newScore = await addScore(participant_id, judge, score);
+    req.app.get('io').emit('scoreUpdated', { participantId: participant_id, judge, score });
     res.status(201).json(newScore);
   } catch (err) {
     res.status(500).json({ error: err.message });

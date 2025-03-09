@@ -115,12 +115,12 @@ const removedDeductions = ref([]);
 const isJudgeEnabled = ref(false);
 
 const fetchActiveParticipant = async () => {
-  const res = await axios.get("http://localhost:5000/tournament-details");
+  const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`);
   if (res.data) {
     selectedActiveParticipant.value = res.data.Active_ID || null;
     isJudgeEnabled.value = res.data[props.judgeTitle.replace(" ", "_")] === 1;
     if (selectedActiveParticipant.value) {
-      const participantRes = await axios.get(`http://localhost:5000/participants/${selectedActiveParticipant.value}`);
+      const participantRes = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants/${selectedActiveParticipant.value}`);
       activeParticipant.value = participantRes.data;
     } else {
       activeParticipant.value = null;
@@ -133,7 +133,7 @@ const fetchLatestScore = async () => {
   console.log(`Fetching latest score for ${props.judgeTitle}`);
   try {
     const judgeIdentifier = props.judgeTitle.replace("Judge ", "");
-    const res = await axios.get(`http://localhost:5000/scores/latest?participant_id=${selectedActiveParticipant.value}&judge=${judgeIdentifier}`);
+    const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores/latest?participant_id=${selectedActiveParticipant.value}&judge=${judgeIdentifier}`);
     console.log("Latest score:", res.data);
     if (res.data && res.data.score !== undefined) {
       score.value = res.data.score;
@@ -148,7 +148,7 @@ const fetchDeductions = async () => {
   console.log(`Fetching deductions for ${props.judgeTitle}`);
   try {
     const judgeIdentifier = props.judgeTitle.replace("Judge ", "");
-    const res = await axios.get(`http://localhost:5000/participant-deductions/${selectedActiveParticipant.value}/${judgeIdentifier}`);
+    const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions/${selectedActiveParticipant.value}/${judgeIdentifier}`);
     console.log("Deductions:", res.data);
     tempDeductions.value = res.data.map(deduction => ({
       ...deduction,
@@ -163,7 +163,7 @@ const fetchDeductions = async () => {
 const applyDeduction = async () => {
   if (!deductionCode.value) return;
   try {
-    const res = await axios.get(`http://localhost:5000/deductions/code/${deductionCode.value}`);
+    const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/deductions/code/${deductionCode.value}`);
     if (res.data && res.data.deduction_value !== undefined) {
       score.value = Math.max(0, score.value - res.data.deduction_value);
       tempDeductions.value.push(res.data);
@@ -176,6 +176,8 @@ const applyDeduction = async () => {
 };
 
 const removeDeduction = (index) => {
+  const deduction = tempDeductions.value[index];
+  score.value = Math.min(5, score.value + deduction.deduction_value); // Add points back
   removedDeductions.value.push(tempDeductions.value[index]);
   tempDeductions.value.splice(index, 1);
 };
@@ -192,7 +194,7 @@ const submitScore = async () => {
   try {
     const judgeIdentifier = props.judgeTitle.replace("Judge ", "");
 
-    await axios.post("http://localhost:5000/scores", {
+    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`, {
       participant_id: selectedActiveParticipant.value,
       judge: judgeIdentifier,
       score: score.value,
@@ -201,9 +203,9 @@ const submitScore = async () => {
     if (tempDeductions.value.length > 0) {
       for (const deduction of tempDeductions.value) {
         if (deduction.deduction_id && !deduction.participant_deduction_id) {
-          await axios.post("http://localhost:5000/participant-deductions", {
+          await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions`, {
             participant_id: selectedActiveParticipant.value,
-            deduction_id: deduction.deduction_id, // Still uses ID for linking
+            deduction_id: deduction.deduction_id,
             judge: judgeIdentifier,
           });
         }
@@ -213,12 +215,12 @@ const submitScore = async () => {
     if (removedDeductions.value.length > 0) {
       for (const deduction of removedDeductions.value) {
         if (deduction.deduction_id) {
-          await axios.delete(`http://localhost:5000/participant-deductions/${selectedActiveParticipant.value}/${deduction.deduction_id}/${judgeIdentifier}`);
+          await axios.delete(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions/${selectedActiveParticipant.value}/${deduction.deduction_id}/${judgeIdentifier}`);
         }
       }
     }
 
-    await axios.post("http://localhost:5000/tournament-details", {
+    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`, {
       argument: props.judgeTitle.replace(" ", "_"),
       value: 0,
     });
@@ -243,18 +245,31 @@ onMounted(async () => {
     await fetchDeductions();
   }
 
-  // Listen for tournament updates
   socket.on("tournamentDetailsUpdated", (data) => {
     selectedActiveParticipant.value = data.Active_ID || null;
     isJudgeEnabled.value = data[props.judgeTitle.replace(" ", "_")] === 1;
     if (selectedActiveParticipant.value && isJudgeEnabled.value) {
-      axios.get(`http://localhost:5000/participants/${selectedActiveParticipant.value}`).then(res => {
+      axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants/${selectedActiveParticipant.value}`).then(res => {
         activeParticipant.value = res.data;
         fetchLatestScore();
         fetchDeductions();
       });
     } else {
       activeParticipant.value = null;
+    }
+  });
+
+  socket.on("scorePublished", (data) => {
+    console.log("Score published:", data);
+    if (data.participantId === selectedActiveParticipant.value) {
+      fetchLatestScore();
+    }
+  });
+
+  socket.on("deductionUpdated", (data) => {
+    console.log("Deduction updated:", data);
+    if (data.participantId === selectedActiveParticipant.value) {
+      fetchDeductions();
     }
   });
 });

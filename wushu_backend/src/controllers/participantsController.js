@@ -11,8 +11,12 @@ export const fetchParticipants = async (req, res) => {
 
 export const createParticipant = async (req, res) => {
   const { name, school, division } = req.body;
+  if (!name || !school || !division) {
+    return res.status(400).json({ error: "Missing required fields (name, school, division)" });
+  }
   try {
     const newParticipant = await addParticipant(name, school, division);
+    req.app.get('io').emit('participantAdded', newParticipant);
     res.status(201).json(newParticipant);
   } catch (err) {
     res.status(500).json({ error: err.message });

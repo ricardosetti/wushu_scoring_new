@@ -68,16 +68,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, inject } from 'vue';
 import axios from 'axios';
 
+const socket = inject('socket');
 const activeParticipant = ref(null);
 const scores = ref({});
 const deductionCodes = ref([]);
 
 const fetchScoreboardData = async () => {
   try {
-    const res = await axios.get("http://localhost:5000/tournament-details");
+    const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`);
     const activeId = res.data.Active_ID;
     if (!activeId) {
       activeParticipant.value = null;
@@ -86,10 +87,10 @@ const fetchScoreboardData = async () => {
       return;
     }
 
-    const participantRes = await axios.get(`http://localhost:5000/participants/${activeId}`);
+    const participantRes = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants/${activeId}`);
     activeParticipant.value = participantRes.data;
 
-    const scoresRes = await axios.get(`http://localhost:5000/published-scores/participant/${activeId}`);
+    const scoresRes = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/published-scores/participant/${activeId}`);
     scores.value = scoresRes.data.scores.reduce((acc, { judge, score }) => {
       acc[judge] = score;
       return acc;
@@ -105,6 +106,13 @@ const fetchScoreboardData = async () => {
 
 onMounted(() => {
   fetchScoreboardData();
+
+  socket.on('scorePublished', (data) => {
+    console.log('Score published:', data);
+    if (data.participantId === activeParticipant.value?.id) {
+      fetchScoreboardData(); // Refresh scoreboard when score is published
+    }
+  });
 });
 </script>
 

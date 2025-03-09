@@ -91,12 +91,12 @@ const judges = [
 const allJudgesOn = ref(false);
 
 const fetchParticipants = async () => {
-  const res = await axios.get("http://localhost:5000/participants");
+  const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants`);
   participants.value = res.data;
 };
 
 const fetchTournamentDetails = async () => {
-  const res = await axios.get("http://localhost:5000/tournament-details");
+  const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`);
   if (res.data) {
     selectedActiveParticipant.value = res.data.Active_ID || null;
     selectedOnDeckParticipant.value = res.data.OnDeck_ID || null;
@@ -121,21 +121,20 @@ const toggleAllJudges = () => {
 
 const saveTournamentDetails = async () => {
   try {
-    await axios.post("http://localhost:5000/tournament-details", {
+    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`, {
       argument: "Active_ID",
       value: selectedActiveParticipant.value,
     });
-    await axios.post("http://localhost:5000/tournament-details", {
+    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`, {
       argument: "OnDeck_ID",
       value: selectedOnDeckParticipant.value,
     });
     for (const judge of judges) {
-      await axios.post("http://localhost:5000/tournament-details", {
+      await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`, {
         argument: judge.id,
         value: judgeStates.value[judge.id],
       });
     }
-    // Emit updated state to all clients
     socket.emit("updateTournamentDetails", {
       Active_ID: selectedActiveParticipant.value,
       OnDeck_ID: selectedOnDeckParticipant.value,
@@ -154,14 +153,13 @@ const calculateFinalScore = async () => {
     return;
   }
   try {
-    const res = await axios.get(`http://localhost:5000/scores/participant/${selectedActiveParticipant.value}`);
+    const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores/participant/${selectedActiveParticipant.value}`);
     console.log("Fetched scores:", res.data);
     const scores = res.data.reduce((acc, { judge, score }) => {
       acc[judge] = Number(score);
       return acc;
     }, {});
 
-    // Validate all judges have submitted
     const requiredJudges = ['A1', 'A2', 'B1', 'B2'];
     const missingJudges = requiredJudges.filter(judge => scores[judge] === undefined);
     if (missingJudges.length > 0) {
@@ -187,17 +185,17 @@ const calculateFinalScore = async () => {
       return;
     }
 
-    await axios.post("http://localhost:5000/scores", {
+    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`, {
       participant_id: selectedActiveParticipant.value,
       judge: "FinalA",
       score: finalA,
     });
-    await axios.post("http://localhost:5000/scores", {
+    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`, {
       participant_id: selectedActiveParticipant.value,
       judge: "FinalB",
       score: finalB,
     });
-    await axios.post("http://localhost:5000/scores", {
+    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`, {
       participant_id: selectedActiveParticipant.value,
       judge: "Final",
       score: final,
@@ -216,7 +214,7 @@ const publishScore = async () => {
     return;
   }
   try {
-    const res = await axios.get(`http://localhost:5000/scores/participant/${selectedActiveParticipant.value}`);
+    const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores/participant/${selectedActiveParticipant.value}`);
     const scores = res.data.reduce((acc, { judge, score }) => {
       acc[judge] = score;
       return acc;
@@ -234,8 +232,14 @@ const publishScore = async () => {
       score: scores[judge],
     }));
 
-    await axios.post("http://localhost:5000/published-scores", {
+    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/published-scores`, {
       participant_id: selectedActiveParticipant.value,
+      scores: publishData,
+    });
+
+    // Emit WebSocket event to update scoreboard
+    socket.emit("scorePublished", {
+      participantId: selectedActiveParticipant.value,
       scores: publishData,
     });
 
@@ -264,6 +268,16 @@ onMounted(() => {
     judgeStates.value.Judge_B1 = data.Judge_B1 || 0;
     judgeStates.value.Judge_B2 = data.Judge_B2 || 0;
     allJudgesOn.value = Object.values(judgeStates.value).every(state => state === 1);
+  });
+
+  socket.on("scorePublished", (data) => {
+    console.log("Score published:", data);
+    // Optionally refresh tournament details if needed
+  });
+
+  socket.on("deductionUpdated", (data) => {
+    console.log("Deduction updated:", data);
+    // Optionally refresh if deductions affect Head Judge view
   });
 });
 </script>

@@ -28,6 +28,9 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Attach io to app for route controllers
+app.set('io', io);
+
 // Routes
 app.use("/participants", participantRoutes);
 app.use("/scores", scoreRoutes);
@@ -49,11 +52,19 @@ io.on("connection", (socket) => {
     io.emit("judgeSubmitted", data);
   });
 
+  socket.on("scorePublished", (data) => {
+    io.emit("scorePublished", data); // Relay to all clients
+  });
+
+  socket.on("deductionUpdated", (data) => {
+    io.emit("deductionUpdated", data); // Relay to all clients
+  });
+
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
   });
 });
 
-server.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+server.listen(port, '0.0.0.0', () => {
+  console.log(`Server running on http://0.0.0.0:${port}`);
 });

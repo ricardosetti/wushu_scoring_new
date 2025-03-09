@@ -1,13 +1,13 @@
 export default {
   content: [
-    './src/**/*.{vue,js,ts,jsx,tsx}', // Ensure all Vue files are included
+    './src/**/*.{vue,js,ts,jsx,tsx}',
   ],
   theme: {
     extend: {
       colors: {
         darkgray: '#374151',
         'darkgray-dark': '#4A5568',
-        blue: '#1E3A8A',
+        primary: '#1E40AF', // Use 'primary' to match your components
         red: '#EF4444',
       },
     },

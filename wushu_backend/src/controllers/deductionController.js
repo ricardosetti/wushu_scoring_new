@@ -27,6 +27,9 @@ export const createDeduction = async (req, res) => {
   const { deduction_category, deduction_criteria, deduction_description, deduction_value } = req.body;
   try {
     const newDeduction = await addDeduction(deduction_category, deduction_criteria, deduction_description, deduction_value);
+    if (req.body.participant_id) {
+      req.app.get('io').emit('deductionUpdated', { participantId: req.body.participant_id });
+    }
     res.status(201).json(newDeduction);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -38,6 +41,9 @@ export const editDeduction = async (req, res) => {
   const { id } = req.params;
   try {
     const updatedDeduction = await updateDeduction(id, deduction_category, deduction_criteria, deduction_description, deduction_value);
+    if (req.body.participant_id) {
+      req.app.get('io').emit('deductionUpdated', { participantId: req.body.participant_id });
+    }
     res.json(updatedDeduction);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -48,12 +54,15 @@ export const removeDeduction = async (req, res) => {
   const { id } = req.params;
   try {
     const deletedDeduction = await deleteDeduction(id);
+    const participantId = req.body.participant_id || deletedDeduction.participant_id; // Adjust based on model
+    if (participantId) {
+      req.app.get('io').emit('deductionUpdated', { participantId });
+    }
     res.json(deletedDeduction);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 export const fetchDeductionByCode = async (req, res) => {
   const { code } = req.params;

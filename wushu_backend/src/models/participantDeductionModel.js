@@ -21,3 +21,30 @@ export const addParticipantDeduction = async (participant_id, deduction_id, judg
     );
     return result.rows;
   };
+
+  export const deleteParticipantDeduction = async (participant_id, deduction_id, judge) => {
+    const deductionResult = await pool.query(
+      "SELECT deduction_value FROM deductions WHERE id = $1",
+      [deduction_id]
+    );
+    if (deductionResult.rows.length === 0) {
+      throw new Error("Deduction not found");
+    }
+    const deductionValue = deductionResult.rows[0].deduction_value;
+  
+    const result = await pool.query(
+      "DELETE FROM participant_deductions WHERE participant_id = $1 AND deduction_id = $2 AND judge = $3 RETURNING *",
+      [participant_id, deduction_id, judge]
+    );
+  
+    if (result.rows.length === 0) {
+      throw new Error("Deduction record not found");
+    }
+  
+    await pool.query(
+      "UPDATE participants SET score = score + $1 WHERE id = $2",
+      [deductionValue, participant_id]
+    );
+  
+    return result.rows[0];
+  };
