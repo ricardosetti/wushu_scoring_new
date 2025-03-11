@@ -60,6 +60,9 @@ export const removeDeduction = async (req, res) => {
     }
     res.json(deletedDeduction);
   } catch (err) {
+    if (err.message === "Deduction not found") {
+      return res.status(404).json({ error: "Deduction not found" });
+    }
     res.status(500).json({ error: err.message });
   }
 };

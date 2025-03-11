@@ -27,8 +27,8 @@ export const updateTournamentDetails = async (req, res) => {
     return res.status(400).json({ error: "Missing argument or value" });
   }
   try {
-    await setTournamentDetail(argument, value);
-    res.json({ message: `Tournament detail updated: ${argument} -> ${value}` });
+    const updatedDetail = await setTournamentDetail(argument, value);
+    res.json({ message: `Tournament detail updated: ${argument} -> ${value}`, updated: updatedDetail });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

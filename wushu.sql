@@ -524,8 +524,7 @@ SELECT pg_catalog.setval('public.scores_id_seq', 155, true);
 -- Name: deductions deductions_deduction_code_key; Type: CONSTRAINT; Schema: public; Owner: wushu
 --
 
-ALTER TABLE ONLY public.deductions
-    ADD CONSTRAINT deductions_deduction_code_key UNIQUE (deduction_code);
+ALTER TABLE ONLY public.deductions ADD CONSTRAINT deductions_deduction_code_key UNIQUE (deduction_code);
 
 
 --

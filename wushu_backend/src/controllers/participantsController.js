@@ -16,7 +16,7 @@ export const createParticipant = async (req, res) => {
   }
   try {
     const newParticipant = await addParticipant(name, school, division);
-    req.app.get('io').emit('participantAdded', newParticipant);
+    req.app.get('io').emit('participantAdded', newParticipant); // Optional
     res.status(201).json(newParticipant);
   } catch (err) {
     res.status(500).json({ error: err.message });
