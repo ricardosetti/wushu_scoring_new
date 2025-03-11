@@ -1,4 +1,3 @@
-import pool from "../models/db.js";
 import { addParticipantDeduction, getDeductionsForParticipant} from "../models/participantDeductionModel.js";
 
 export const createParticipantDeduction = async (req, res) => {

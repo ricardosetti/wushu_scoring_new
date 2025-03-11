@@ -6,11 +6,15 @@ export const getAllParticipants = async () => {
 };
 
 export const addParticipant = async (name, school, division) => {
-  const result = await pool.query(
-    "INSERT INTO participants (name, school, division) VALUES ($1, $2, $3) RETURNING *",
-    [name, school, division]
-  );
-  return result.rows[0];
+  try {
+    const result = await pool.query(
+      "INSERT INTO participants (name, school, division) VALUES ($1, $2, $3) RETURNING *",
+      [name, school, division]
+    );
+    return result.rows[0];
+  } catch (err) {
+    throw err; // Let the controller handle the error
+  }
 };
 
 export const getParticipantById = async (id) => {

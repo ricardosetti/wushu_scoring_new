@@ -6,8 +6,9 @@ export const getTournamentDetail = async (argument) => {
 };
 
 export const setTournamentDetail = async (argument, value) => {
-  await pool.query(
-    "INSERT INTO tournament_details (argument, value) VALUES ($1, $2) ON CONFLICT (argument) DO UPDATE SET value = $2",
+  const result = await pool.query(
+    "INSERT INTO tournament_details (argument, value) VALUES ($1, $2) ON CONFLICT (argument) DO UPDATE SET value = $2 RETURNING *",
     [argument, value]
   );
+  return result.rows[0];
 };
