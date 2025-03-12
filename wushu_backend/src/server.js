@@ -10,6 +10,7 @@ import tournamentDetailsRoutes from "./routes/tournamentDetailsRoutes.js";
 import deductionRoutes from "./routes/deductionRoutes.js";
 import participantDeductionRoutes from "./routes/participantDeductionRoutes.js";
 import publishedScoresRoutes from "./routes/publishedScoresRoutes.js";
+import schoolRoutes from "./routes/schoolRoutes.js";
 
 dotenv.config();
 const app = express();
@@ -39,6 +40,7 @@ app.use("/tournament-details", tournamentDetailsRoutes);
 app.use("/deductions", deductionRoutes);
 app.use("/participant-deductions", participantDeductionRoutes);
 app.use("/published-scores", publishedScoresRoutes);
+app.use("/schools", schoolRoutes);
 
 // Socket.IO events
 io.on("connection", (socket) => {

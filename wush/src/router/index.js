@@ -5,6 +5,8 @@ import JudgeB1 from "../views/JudgeB1.vue";
 import JudgeB2 from "../views/JudgeB2.vue";
 import HeadJudge from "../views/HeadJudge.vue";
 import Scoreboard from "../views/Scoreboard.vue";
+import Admin from '../views/Admin.vue' // New
+import SchoolManagement from '../views/SchoolManagement.vue' // New
 
 const routes = [
   { path: "/judge-a1", component: JudgeA1 },
@@ -14,6 +16,8 @@ const routes = [
   { path: "/head-judge", component: HeadJudge },
   { path: "/scoreboard", component: Scoreboard }, // New route
   { path: "/", redirect: "/head-judge" },
+  { path: "/admin", component: Admin }, // New route
+  { path: "/admin/schools", component: SchoolManagement }, // New route
 ];
 
 const router = createRouter({
