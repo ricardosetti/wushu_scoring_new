@@ -14,7 +14,7 @@
         </tr>
         <tr>
           <td class="header-cell">
-            <div class="school">School: {{ activeParticipant?.school || 'N/A' }}</div>
+            <div class="school">School: {{ activeParticipant?.school_name || 'N/A' }}</div> <!-- Updated from .school to .school_name -->
           </td>
         </tr>
       </table>
