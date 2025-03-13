@@ -7,6 +7,7 @@ import HeadJudge from "../views/HeadJudge.vue";
 import Scoreboard from "../views/Scoreboard.vue";
 import Admin from '../views/Admin.vue' // New
 import SchoolManagement from '../views/SchoolManagement.vue' // New
+import ParticipantManagement from '../views/ParticipantManagement.vue' // New
 
 const routes = [
   { path: "/judge-a1", component: JudgeA1 },
@@ -18,6 +19,7 @@ const routes = [
   { path: "/", redirect: "/head-judge" },
   { path: "/admin", component: Admin }, // New route
   { path: "/admin/schools", component: SchoolManagement }, // New route
+  { path: "/admin/participants", component: ParticipantManagement }, // New route
 ];
 
 const router = createRouter({
