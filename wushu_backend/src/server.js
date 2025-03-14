@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { createServer } from "http";
 import { Server } from "socket.io";
 import participantRoutes from "./routes/participantRoutes.js";
+import divisionRoutes from "./routes/divisionRoutes.js"; // Add this line
 import scoreRoutes from "./routes/scoreRoutes.js";
 import activeParticipantRoutes from "./routes/activeParticipantRoutes.js";
 import tournamentDetailsRoutes from "./routes/tournamentDetailsRoutes.js";
@@ -11,6 +12,7 @@ import deductionRoutes from "./routes/deductionRoutes.js";
 import participantDeductionRoutes from "./routes/participantDeductionRoutes.js";
 import publishedScoresRoutes from "./routes/publishedScoresRoutes.js";
 import schoolRoutes from "./routes/schoolRoutes.js";
+
 
 dotenv.config();
 const app = express();
@@ -34,6 +36,7 @@ app.set('io', io);
 
 // Routes
 app.use("/participants", participantRoutes);
+app.use("/divisions", divisionRoutes); // Add this line
 app.use("/scores", scoreRoutes);
 app.use("/active-participant", activeParticipantRoutes);
 app.use("/tournament-details", tournamentDetailsRoutes);

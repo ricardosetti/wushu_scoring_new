@@ -8,6 +8,7 @@ import Scoreboard from "../views/Scoreboard.vue";
 import Admin from '../views/Admin.vue' // New
 import SchoolManagement from '../views/SchoolManagement.vue' // New
 import ParticipantManagement from '../views/ParticipantManagement.vue' // New
+import DivisionManagement from '../views/DivisionManagement.vue' // New
 
 const routes = [
   { path: "/judge-a1", component: JudgeA1 },
@@ -20,6 +21,7 @@ const routes = [
   { path: "/admin", component: Admin }, // New route
   { path: "/admin/schools", component: SchoolManagement }, // New route
   { path: "/admin/participants", component: ParticipantManagement }, // New route
+  { path: "/admin/divisions", component: DivisionManagement }, // New route 
 ];
 
 const router = createRouter({

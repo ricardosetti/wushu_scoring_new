@@ -8,16 +8,16 @@
           <tr class="bg-primary text-white">
             <th class="p-3">Participant</th>
             <th class="p-3">School</th>
-            <th class="p-3">Division</th>
+            <th class="p-3">Divisions</th>
             <th class="p-3">Active</th>
             <th class="p-3">On Deck</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="participant in participants" :key="participant.id" class="hover:bg-gray-100">
-            <td class="border p-3">{{ participant.name }}</td>
-            <td class="border p-3">{{ participant.school }}</td>
-            <td class="border p-3">{{ participant.division }}</td>
+            <td class="border p-3">{{ participant.fullName || 'N/A' }}</td>
+            <td class="border p-3">{{ participant.school_name || 'N/A' }}</td>
+            <td class="border p-3">{{ participant.divisions.length ? participant.divisions.join(', ') : 'N/A' }}</td>
             <td class="border p-3 text-center">
               <input type="radio" name="activeParticipant" :value="participant.id" v-model="selectedActiveParticipant" class="accent-accent" />
             </td>
@@ -91,20 +91,39 @@ const judges = [
 const allJudgesOn = ref(false);
 
 const fetchParticipants = async () => {
-  const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants`);
-  participants.value = res.data;
+  try {
+    const res = await axios.get(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants`
+    );
+    participants.value = res.data.map((participant) => {
+      // Compute full name
+      participant.fullName = [participant.first_name, participant.middle_name, participant.last_name]
+        .filter((part) => part)
+        .join(" ");
+      return participant;
+    });
+  } catch (err) {
+    console.error("Error fetching participants:", err.response?.data || err.message);
+    participants.value = [];
+  }
 };
 
 const fetchTournamentDetails = async () => {
-  const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`);
-  if (res.data) {
-    selectedActiveParticipant.value = res.data.Active_ID || null;
-    selectedOnDeckParticipant.value = res.data.OnDeck_ID || null;
-    judgeStates.value.Judge_A1 = res.data.Judge_A1 || 0;
-    judgeStates.value.Judge_A2 = res.data.Judge_A2 || 0;
-    judgeStates.value.Judge_B1 = res.data.Judge_B1 || 0;
-    judgeStates.value.Judge_B2 = res.data.Judge_B2 || 0;
-    allJudgesOn.value = Object.values(judgeStates.value).every(state => state === 1);
+  try {
+    const res = await axios.get(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`
+    );
+    if (res.data) {
+      selectedActiveParticipant.value = res.data.Active_ID || null;
+      selectedOnDeckParticipant.value = res.data.OnDeck_ID || null;
+      judgeStates.value.Judge_A1 = res.data.Judge_A1 || 0;
+      judgeStates.value.Judge_A2 = res.data.Judge_A2 || 0;
+      judgeStates.value.Judge_B1 = res.data.Judge_B1 || 0;
+      judgeStates.value.Judge_B2 = res.data.Judge_B2 || 0;
+      allJudgesOn.value = Object.values(judgeStates.value).every((state) => state === 1);
+    }
+  } catch (err) {
+    console.error("Error fetching tournament details:", err.response?.data || err.message);
   }
 };
 
@@ -114,26 +133,35 @@ const toggleJudge = (judgeId) => {
 
 const toggleAllJudges = () => {
   allJudgesOn.value = !allJudgesOn.value;
-  judges.forEach(judge => {
+  judges.forEach((judge) => {
     judgeStates.value[judge.id] = allJudgesOn.value ? 1 : 0;
   });
 };
 
 const saveTournamentDetails = async () => {
   try {
-    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`, {
-      argument: "Active_ID",
-      value: selectedActiveParticipant.value,
-    });
-    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`, {
-      argument: "OnDeck_ID",
-      value: selectedOnDeckParticipant.value,
-    });
+    await axios.post(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`,
+      {
+        argument: "Active_ID",
+        value: selectedActiveParticipant.value,
+      }
+    );
+    await axios.post(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`,
+      {
+        argument: "OnDeck_ID",
+        value: selectedOnDeckParticipant.value,
+      }
+    );
     for (const judge of judges) {
-      await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`, {
-        argument: judge.id,
-        value: judgeStates.value[judge.id],
-      });
+      await axios.post(
+        `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`,
+        {
+          argument: judge.id,
+          value: judgeStates.value[judge.id],
+        }
+      );
     }
     socket.emit("updateTournamentDetails", {
       Active_ID: selectedActiveParticipant.value,
@@ -153,27 +181,29 @@ const calculateFinalScore = async () => {
     return;
   }
   try {
-    const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores/participant/${selectedActiveParticipant.value}`);
+    const res = await axios.get(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores/participant/${selectedActiveParticipant.value}`
+    );
     console.log("Fetched scores:", res.data);
     const scores = res.data.reduce((acc, { judge, score }) => {
       acc[judge] = Number(score);
       return acc;
     }, {});
 
-    const requiredJudges = ['A1', 'A2', 'B1', 'B2'];
-    const missingJudges = requiredJudges.filter(judge => scores[judge] === undefined);
+    const requiredJudges = ["A1", "A2", "B1", "B2"];
+    const missingJudges = requiredJudges.filter((judge) => scores[judge] === undefined);
     if (missingJudges.length > 0) {
-      alert(`Cannot calculate final score: Missing scores from ${missingJudges.join(', ')}.`);
+      alert(`Cannot calculate final score: Missing scores from ${missingJudges.join(", ")}.`);
       return;
     }
 
-    const a1 = scores['A1'];
-    const a2 = scores['A2'];
+    const a1 = scores["A1"];
+    const a2 = scores["A2"];
     const finalA = (a1 + a2) / 2;
     console.log(`A1: ${a1}, A2: ${a2}, FinalA: ${finalA}`);
 
-    const b1 = scores['B1'];
-    const b2 = scores['B2'];
+    const b1 = scores["B1"];
+    const b2 = scores["B2"];
     const finalB = (b1 + b2) / 2;
     console.log(`B1: ${b1}, B2: ${b2}, FinalB: ${finalB}`);
 
@@ -185,21 +215,30 @@ const calculateFinalScore = async () => {
       return;
     }
 
-    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`, {
-      participant_id: selectedActiveParticipant.value,
-      judge: "FinalA",
-      score: finalA,
-    });
-    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`, {
-      participant_id: selectedActiveParticipant.value,
-      judge: "FinalB",
-      score: finalB,
-    });
-    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`, {
-      participant_id: selectedActiveParticipant.value,
-      judge: "Final",
-      score: final,
-    });
+    await axios.post(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`,
+      {
+        participant_id: selectedActiveParticipant.value,
+        judge: "FinalA",
+        score: finalA,
+      }
+    );
+    await axios.post(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`,
+      {
+        participant_id: selectedActiveParticipant.value,
+        judge: "FinalB",
+        score: finalB,
+      }
+    );
+    await axios.post(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`,
+      {
+        participant_id: selectedActiveParticipant.value,
+        judge: "Final",
+        score: final,
+      }
+    );
 
     alert(`Final Score Calculated: FinalA = ${finalA}, FinalB = ${finalB}, Final = ${final}`);
   } catch (err) {
@@ -214,28 +253,33 @@ const publishScore = async () => {
     return;
   }
   try {
-    const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores/participant/${selectedActiveParticipant.value}`);
+    const res = await axios.get(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores/participant/${selectedActiveParticipant.value}`
+    );
     const scores = res.data.reduce((acc, { judge, score }) => {
       acc[judge] = score;
       return acc;
     }, {});
 
-    const requiredJudges = ['A1', 'A2', 'B1', 'B2', 'FinalA', 'FinalB', 'Final'];
-    const missingJudges = requiredJudges.filter(judge => scores[judge] === undefined);
+    const requiredJudges = ["A1", "A2", "B1", "B2", "FinalA", "FinalB", "Final"];
+    const missingJudges = requiredJudges.filter((judge) => scores[judge] === undefined);
     if (missingJudges.length > 0) {
-      alert(`Cannot publish score: Missing scores from ${missingJudges.join(', ')}.`);
+      alert(`Cannot publish score: Missing scores from ${missingJudges.join(", ")}.`);
       return;
     }
 
-    const publishData = requiredJudges.map(judge => ({
+    const publishData = requiredJudges.map((judge) => ({
       judge,
       score: scores[judge],
     }));
 
-    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/published-scores`, {
-      participant_id: selectedActiveParticipant.value,
-      scores: publishData,
-    });
+    await axios.post(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/published-scores`,
+      {
+        participant_id: selectedActiveParticipant.value,
+        scores: publishData,
+      }
+    );
 
     // Emit WebSocket event to update scoreboard
     socket.emit("scorePublished", {
@@ -267,7 +311,7 @@ onMounted(() => {
     judgeStates.value.Judge_A2 = data.Judge_A2 || 0;
     judgeStates.value.Judge_B1 = data.Judge_B1 || 0;
     judgeStates.value.Judge_B2 = data.Judge_B2 || 0;
-    allJudgesOn.value = Object.values(judgeStates.value).every(state => state === 1);
+    allJudgesOn.value = Object.values(judgeStates.value).every((state) => state === 1);
   });
 
   socket.on("scorePublished", (data) => {
@@ -286,10 +330,22 @@ onMounted(() => {
 body {
   font-family: Arial, sans-serif;
 }
-.text-primary { color: #1E40AF; }
-.bg-primary { background-color: #1E40AF; }
-.text-secondary { color: #F97316; }
-.bg-secondary { background-color: #F97316; }
-.text-accent { color: #10B981; }
-.bg-accent { background-color: #10B981; }
+.text-primary {
+  color: #1e40af;
+}
+.bg-primary {
+  background-color: #1e40af;
+}
+.text-secondary {
+  color: #f97316;
+}
+.bg-secondary {
+  background-color: #f97316;
+}
+.text-accent {
+  color: #10b981;
+}
+.bg-accent {
+  background-color: #10b981;
+}
 </style>

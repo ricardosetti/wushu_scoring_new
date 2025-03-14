@@ -9,11 +9,16 @@
     </button>
     <button
       @click="openParticipantManagement"
-      class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+      class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2"
     >
       Manage Participants
     </button>
-    <!-- Add other management buttons here later -->
+    <button
+      @click="openDivisionManagement"
+      class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+    >
+      Manage Divisions
+    </button>
   </div>
 </template>
 
@@ -25,6 +30,9 @@ export default {
     },
     openParticipantManagement() {
       this.$router.push('/admin/participants');
+    },
+    openDivisionManagement() {
+      this.$router.push('/admin/divisions');
     },
   },
 };

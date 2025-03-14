@@ -3,8 +3,10 @@
     <h2 class="text-3xl font-bold text-center text-primary">{{ judgeTitle }}</h2>
     
     <div v-if="activeParticipant && isJudgeEnabled" class="bg-gray-50 p-4 rounded-lg">
-      <h3 class="text-xl font-semibold text-primary">Participant: {{ activeParticipant.name }}</h3>
-      <p class="text-lg">School: {{ activeParticipant.school }}</p>
+      <h3 class="text-xl font-semibold text-primary">Participant</h3>
+      <p><strong>Name:</strong> {{ activeParticipant.fullName || 'N/A' }}</p>
+      <p><strong>School:</strong> {{ activeParticipant.school_name || 'N/A' }}</p>
+      <p><strong>Divisions:</strong> {{ activeParticipant.divisions.length ? activeParticipant.divisions.join(', ') : 'N/A' }}</p>
     </div>
     <div v-else-if="!isJudgeEnabled" class="text-center bg-red-100 p-4 rounded-lg">
       <h3 class="text-xl font-semibold text-red-500">Judge Disabled - Waiting for Head Judge</h3>
@@ -103,7 +105,7 @@ import axios from 'axios';
 
 const socket = inject("socket");
 const props = defineProps({
-  judgeTitle: String
+  judgeTitle: String,
 });
 
 const selectedActiveParticipant = ref(null);
@@ -120,8 +122,15 @@ const fetchActiveParticipant = async () => {
     selectedActiveParticipant.value = res.data.Active_ID || null;
     isJudgeEnabled.value = res.data[props.judgeTitle.replace(" ", "_")] === 1;
     if (selectedActiveParticipant.value) {
-      const participantRes = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants/${selectedActiveParticipant.value}`);
-      activeParticipant.value = participantRes.data;
+      const participantRes = await axios.get(
+        `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants/${selectedActiveParticipant.value}`
+      );
+      const participant = participantRes.data;
+      // Compute full name
+      participant.fullName = [participant.first_name, participant.middle_name, participant.last_name]
+        .filter(part => part)
+        .join(' ');
+      activeParticipant.value = participant;
     } else {
       activeParticipant.value = null;
     }
@@ -133,7 +142,9 @@ const fetchLatestScore = async () => {
   console.log(`Fetching latest score for ${props.judgeTitle}`);
   try {
     const judgeIdentifier = props.judgeTitle.replace("Judge ", "");
-    const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores/latest?participant_id=${selectedActiveParticipant.value}&judge=${judgeIdentifier}`);
+    const res = await axios.get(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores/latest?participant_id=${selectedActiveParticipant.value}&judge=${judgeIdentifier}`
+    );
     console.log("Latest score:", res.data);
     if (res.data && res.data.score !== undefined) {
       score.value = res.data.score;
@@ -148,12 +159,14 @@ const fetchDeductions = async () => {
   console.log(`Fetching deductions for ${props.judgeTitle}`);
   try {
     const judgeIdentifier = props.judgeTitle.replace("Judge ", "");
-    const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions/${selectedActiveParticipant.value}/${judgeIdentifier}`);
+    const res = await axios.get(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions/${selectedActiveParticipant.value}/${judgeIdentifier}`
+    );
     console.log("Deductions:", res.data);
     tempDeductions.value = res.data.map(deduction => ({
       ...deduction,
       participant_deduction_id: deduction.participant_deduction_id,
-      deduction_id: deduction.deduction_id
+      deduction_id: deduction.deduction_id,
     }));
   } catch (err) {
     console.error("Error fetching deductions:", err);
@@ -163,7 +176,9 @@ const fetchDeductions = async () => {
 const applyDeduction = async () => {
   if (!deductionCode.value) return;
   try {
-    const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/deductions/code/${deductionCode.value}`);
+    const res = await axios.get(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/deductions/code/${deductionCode.value}`
+    );
     if (res.data && res.data.deduction_value !== undefined) {
       score.value = Math.max(0, score.value - res.data.deduction_value);
       tempDeductions.value.push(res.data);
@@ -194,20 +209,26 @@ const submitScore = async () => {
   try {
     const judgeIdentifier = props.judgeTitle.replace("Judge ", "");
 
-    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`, {
-      participant_id: selectedActiveParticipant.value,
-      judge: judgeIdentifier,
-      score: score.value,
-    });
+    await axios.post(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`,
+      {
+        participant_id: selectedActiveParticipant.value,
+        judge: judgeIdentifier,
+        score: score.value,
+      }
+    );
 
     if (tempDeductions.value.length > 0) {
       for (const deduction of tempDeductions.value) {
         if (deduction.deduction_id && !deduction.participant_deduction_id) {
-          await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions`, {
-            participant_id: selectedActiveParticipant.value,
-            deduction_id: deduction.deduction_id,
-            judge: judgeIdentifier,
-          });
+          await axios.post(
+            `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions`,
+            {
+              participant_id: selectedActiveParticipant.value,
+              deduction_id: deduction.deduction_id,
+              judge: judgeIdentifier,
+            }
+          );
         }
       }
     }
@@ -215,15 +236,20 @@ const submitScore = async () => {
     if (removedDeductions.value.length > 0) {
       for (const deduction of removedDeductions.value) {
         if (deduction.deduction_id) {
-          await axios.delete(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions/${selectedActiveParticipant.value}/${deduction.deduction_id}/${judgeIdentifier}`);
+          await axios.delete(
+            `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions/${selectedActiveParticipant.value}/${deduction.deduction_id}/${judgeIdentifier}`
+          );
         }
       }
     }
 
-    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`, {
-      argument: props.judgeTitle.replace(" ", "_"),
-      value: 0,
-    });
+    await axios.post(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`,
+      {
+        argument: props.judgeTitle.replace(" ", "_"),
+        value: 0,
+      }
+    );
     isJudgeEnabled.value = false;
 
     socket.emit("scoreSubmitted", { judge: props.judgeTitle.replace(" ", "_") });
@@ -249,11 +275,24 @@ onMounted(async () => {
     selectedActiveParticipant.value = data.Active_ID || null;
     isJudgeEnabled.value = data[props.judgeTitle.replace(" ", "_")] === 1;
     if (selectedActiveParticipant.value && isJudgeEnabled.value) {
-      axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants/${selectedActiveParticipant.value}`).then(res => {
-        activeParticipant.value = res.data;
-        fetchLatestScore();
-        fetchDeductions();
-      });
+      axios
+        .get(
+          `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants/${selectedActiveParticipant.value}`
+        )
+        .then((res) => {
+          const participant = res.data;
+          // Compute full name
+          participant.fullName = [participant.first_name, participant.middle_name, participant.last_name]
+            .filter((part) => part)
+            .join(" ");
+          activeParticipant.value = participant;
+          fetchLatestScore();
+          fetchDeductions();
+        })
+        .catch((err) => {
+          console.error("Error fetching participant:", err);
+          activeParticipant.value = null;
+        });
     } else {
       activeParticipant.value = null;
     }
@@ -279,19 +318,25 @@ onMounted(async () => {
 body {
   font-family: Arial, sans-serif;
 }
-.text-primary { color: #1E40AF; }
-.bg-primary { background-color: #1E40AF; }
-.text-accent { color: #10B981; }
+.text-primary {
+  color: #1e40af;
+}
+.bg-primary {
+  background-color: #1e40af;
+}
+.text-accent {
+  color: #10b981;
+}
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 20px;
   height: 20px;
-  background: #10B981;
+  background: #10b981;
   cursor: pointer;
   border-radius: 50%;
 }
 input[type="range"]:disabled::-webkit-slider-thumb {
-  background: #D1D5DB;
+  background: #d1d5db;
 }
 </style>

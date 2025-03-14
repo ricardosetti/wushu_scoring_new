@@ -4,17 +4,17 @@
       <table class="scoreboard-table">
         <tr>
           <td class="header-cell">
-            <span class="participant-name">{{ activeParticipant?.name || 'No Participant' }}</span>
+            <span class="participant-name">{{ activeParticipant?.fullName || 'No Participant' }}</span>
           </td>
         </tr>
         <tr>
           <td class="header-cell">
-            <div class="division">Division: {{ activeParticipant?.division || 'N/A' }}</div>
+            <div class="division">Division: {{ activeParticipant?.divisions.length ? activeParticipant.divisions.join(', ') : 'N/A' }}</div>
           </td>
         </tr>
         <tr>
           <td class="header-cell">
-            <div class="school">School: {{ activeParticipant?.school_name || 'N/A' }}</div> <!-- Updated from .school to .school_name -->
+            <div class="school">School: {{ activeParticipant?.school_name || 'N/A' }}</div>
           </td>
         </tr>
       </table>
@@ -87,17 +87,26 @@ const fetchScoreboardData = async () => {
       return;
     }
 
-    const participantRes = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants/${activeId}`);
-    activeParticipant.value = participantRes.data;
+    const participantRes = await axios.get(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants/${activeId}`
+    );
+    let participant = participantRes.data;
+    // Compute full name
+    participant.fullName = [participant.first_name, participant.middle_name, participant.last_name]
+      .filter((part) => part)
+      .join(' ');
+    activeParticipant.value = participant;
 
-    const scoresRes = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/published-scores/participant/${activeId}`);
+    const scoresRes = await axios.get(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/published-scores/participant/${activeId}`
+    );
     scores.value = scoresRes.data.scores.reduce((acc, { judge, score }) => {
       acc[judge] = score;
       return acc;
     }, {});
     deductionCodes.value = scoresRes.data.deduction_codes || [];
   } catch (err) {
-    console.error("Error fetching scoreboard data:", err);
+    console.error('Error fetching scoreboard data:', err);
     activeParticipant.value = null;
     scores.value = {};
     deductionCodes.value = [];

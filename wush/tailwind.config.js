@@ -1,5 +1,7 @@
+/** @type {import('tailwindcss').Config} */
 export default {
   content: [
+    './index.html',
     './src/**/*.{vue,js,ts,jsx,tsx}',
   ],
   theme: {
@@ -7,7 +9,7 @@ export default {
       colors: {
         darkgray: '#374151',
         'darkgray-dark': '#4A5568',
-        primary: '#1E40AF', // Use 'primary' to match your components
+        primary: '#1E40AF',
         red: '#EF4444',
       },
     },
