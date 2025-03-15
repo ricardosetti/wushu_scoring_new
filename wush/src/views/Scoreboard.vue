@@ -62,19 +62,34 @@
 </template>
 
 <script setup>
-import { ref, onMounted, inject } from 'vue';
-import axios from 'axios';
+import { ref, onMounted, inject } from "vue";
+import axios from "axios";
 
-const socket = inject('socket');
+const socket = inject("socket");
 const activeParticipant = ref(null);
+const activeDivision = ref(null);
 const scores = ref({});
 const deductionCodes = ref([]);
 
+const fetchActiveDivision = async () => {
+  try {
+    const res = await axios.get(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/divisions/active`
+    );
+    activeDivision.value = res.data;
+  } catch (err) {
+    console.error("Error fetching active division:", err);
+    activeDivision.value = null;
+  }
+};
+
 const fetchScoreboardData = async () => {
   try {
-    const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`);
+    const res = await axios.get(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`
+    );
     const activeId = res.data.Active_ID;
-    if (!activeId) {
+    if (!activeId || !activeDivision.value) {
       activeParticipant.value = null;
       scores.value = {};
       deductionCodes.value = [];
@@ -84,11 +99,10 @@ const fetchScoreboardData = async () => {
     const participantRes = await axios.get(
       `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants/${activeId}`
     );
-    let participant = participantRes.data;
-    participant.fullName = [participant.first_name, participant.middle_name, participant.last_name]
+    activeParticipant.value = participantRes.data;
+    activeParticipant.value.fullName = [activeParticipant.value.first_name, activeParticipant.value.middle_name, activeParticipant.value.last_name]
       .filter((part) => part)
-      .join(' ');
-    activeParticipant.value = participant;
+      .join(" ");
 
     const scoresRes = await axios.get(
       `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/published-scores/participant/${activeId}`
@@ -99,7 +113,7 @@ const fetchScoreboardData = async () => {
     }, {});
     deductionCodes.value = scoresRes.data.deduction_codes || [];
   } catch (err) {
-    console.error('Error fetching scoreboard data:', err);
+    console.error("Error fetching scoreboard data:", err);
     activeParticipant.value = null;
     scores.value = {};
     deductionCodes.value = [];
@@ -107,11 +121,23 @@ const fetchScoreboardData = async () => {
 };
 
 onMounted(() => {
+  fetchActiveDivision();
   fetchScoreboardData();
 
-  socket.on('scorePublished', (data) => {
-    console.log('Score published:', data);
-    if (data.participantId === activeParticipant.value?.id) {
+  socket.on("activeDivisionUpdated", (data) => {
+    activeDivision.value = data;
+    fetchScoreboardData();
+  });
+
+  socket.on("scorePublished", (data) => {
+    console.log("Score published:", data);
+    if (data.participantId === activeParticipant.value?.id && data.division_id === activeDivision.value?.id) {
+      fetchScoreboardData();
+    }
+  });
+
+  socket.on("tournamentDetailsUpdated", (data) => {
+    if (data.Active_ID) {
       fetchScoreboardData();
     }
   });
