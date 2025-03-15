@@ -3,7 +3,10 @@ import {
   fetchParticipants,
   createParticipant,
   fetchParticipantById,
-  updateParticipantController, // Updated to match the new name
+  updateParticipantController,
+  addParticipantDivisionController,
+  removeParticipantDivisionController,
+  fetchParticipantDivisions,
   deleteParticipantController,
 } from "../controllers/participantsController.js";
 
@@ -12,7 +15,10 @@ const router = express.Router();
 router.get("/", fetchParticipants);
 router.post("/", createParticipant);
 router.get("/:id", fetchParticipantById);
-router.put("/:id", updateParticipantController); // New route
-router.delete("/:id", deleteParticipantController); // New route
+router.put("/:id", updateParticipantController);
+router.delete("/:id", deleteParticipantController);
+router.post("/division", addParticipantDivisionController);
+router.delete("/division", removeParticipantDivisionController);
+router.get("/:participant_id/divisions", fetchParticipantDivisions);
 
 export default router;
