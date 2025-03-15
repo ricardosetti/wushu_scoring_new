@@ -2,8 +2,11 @@ import {
     addDivision,
     getDivisions,
     getDivisionById,
+    getActiveDivision,
+    setActiveDivision,
+    clearActiveDivision,
     updateDivision,
-    deleteDivision, // Imported from model
+    deleteDivision,
   } from "../models/divisionModel.js";
   
   export const createDivision = async (req, res) => {
@@ -21,12 +24,12 @@ import {
   
   export const fetchDivisions = async (req, res) => {
     try {
-      const divisions = await getDivisions();
-      res.json(divisions);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  };
+        const divisions = await getDivisions();
+        res.json(divisions);
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
+    };
   
   export const fetchDivisionById = async (req, res) => {
     const { id } = req.params;
@@ -36,6 +39,40 @@ import {
         return res.status(404).json({ error: "Division not found" });
       }
       res.json(division);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  };
+
+  export const getActiveDivisionController = async (req, res) => {
+    try {
+      const activeDivision = await getActiveDivision();
+      res.json(activeDivision);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  };
+
+  export const setActiveDivisionController = async (req, res) => {
+    const { division_id } = req.body;
+    if (!division_id) {
+      return res.status(400).json({ error: "Division ID is required" });
+    }
+    try {
+      const division = await setActiveDivision(division_id);
+      if (!division) {
+        return res.status(404).json({ error: "Division not found" });
+      }
+      res.json(division);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  };
+
+  export const clearActiveDivisionController = async (req, res) => {
+    try {
+      const result = await clearActiveDivision();
+      res.json(result || { message: "No active division to clear" });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

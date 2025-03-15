@@ -68,6 +68,10 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
   });
+
+  socket.on("activeDivisionUpdated", (data) => {
+    io.emit("activeDivisionUpdated", data);
+  });
 });
 
 server.listen(port, '0.0.0.0', () => {
