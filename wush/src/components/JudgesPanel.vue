@@ -110,11 +110,24 @@ const props = defineProps({
 
 const selectedActiveParticipant = ref(null);
 const activeParticipant = ref(null);
+const activeDivision = ref(null); // Add active division
 const score = ref(5.0);
 const deductionCode = ref(null);
 const tempDeductions = ref([]);
 const removedDeductions = ref([]);
 const isJudgeEnabled = ref(false);
+
+const fetchActiveDivision = async () => {
+  try {
+    const res = await axios.get(
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/divisions/active`
+    );
+    activeDivision.value = res.data;
+  } catch (err) {
+    console.error("Error fetching active division:", err);
+    activeDivision.value = null;
+  }
+};
 
 const fetchActiveParticipant = async () => {
   const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`);
@@ -155,12 +168,12 @@ const fetchLatestScore = async () => {
 };
 
 const fetchDeductions = async () => {
-  if (!selectedActiveParticipant.value || !isJudgeEnabled.value) return;
+  if (!selectedActiveParticipant.value || !isJudgeEnabled.value || !activeDivision.value) return;
   console.log(`Fetching deductions for ${props.judgeTitle}`);
   try {
     const judgeIdentifier = props.judgeTitle.replace("Judge ", "");
     const res = await axios.get(
-      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions/${selectedActiveParticipant.value}/${judgeIdentifier}`
+      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions/${selectedActiveParticipant.value}/${judgeIdentifier}/${activeDivision.value.id}`
     );
     console.log("Deductions:", res.data);
     tempDeductions.value = res.data.map(deduction => ({
@@ -170,11 +183,12 @@ const fetchDeductions = async () => {
     }));
   } catch (err) {
     console.error("Error fetching deductions:", err);
+    tempDeductions.value = [];
   }
 };
 
 const applyDeduction = async () => {
-  if (!deductionCode.value) return;
+  if (!deductionCode.value || !activeDivision.value) return;
   try {
     const res = await axios.get(
       `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/deductions/code/${deductionCode.value}`
@@ -198,8 +212,8 @@ const removeDeduction = (index) => {
 };
 
 const submitScore = async () => {
-  if (!selectedActiveParticipant.value) {
-    alert("No active participant selected!");
+  if (!selectedActiveParticipant.value || !activeDivision.value) {
+    alert("No active participant or division selected!");
     return;
   }
   if (!isJudgeEnabled.value) {
@@ -215,6 +229,7 @@ const submitScore = async () => {
         participant_id: selectedActiveParticipant.value,
         judge: judgeIdentifier,
         score: score.value,
+        division_id: activeDivision.value.id, // Add division_id
       }
     );
 
@@ -227,6 +242,7 @@ const submitScore = async () => {
               participant_id: selectedActiveParticipant.value,
               deduction_id: deduction.deduction_id,
               judge: judgeIdentifier,
+              division_id: activeDivision.value.id, // Add division_id
             }
           );
         }
@@ -237,7 +253,7 @@ const submitScore = async () => {
       for (const deduction of removedDeductions.value) {
         if (deduction.deduction_id) {
           await axios.delete(
-            `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions/${selectedActiveParticipant.value}/${deduction.deduction_id}/${judgeIdentifier}`
+            `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions/${selectedActiveParticipant.value}/${deduction.deduction_id}/${judgeIdentifier}/${activeDivision.value.id}` // Add division_id
           );
         }
       }
@@ -265,8 +281,9 @@ const submitScore = async () => {
 };
 
 onMounted(async () => {
+  await fetchActiveDivision();
   await fetchActiveParticipant();
-  if (selectedActiveParticipant.value && isJudgeEnabled.value) {
+  if (selectedActiveParticipant.value && isJudgeEnabled.value && activeDivision.value) {
     await fetchLatestScore();
     await fetchDeductions();
   }

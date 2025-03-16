@@ -3,12 +3,15 @@
     <div class="w-full max-w-4xl text-center">
       <!-- Participant Info Section -->
       <div class="bg-gray-700 py-2">
+        <!-- Display Active Division First -->
+        <div class="division text-2xl sm:text-3xl text-white mb-2">
+          Division: {{ activeDivision?.division_name || 'N/A' }}
+        </div>
+        <!-- Participant Name -->
         <div class="participant-name text-4xl sm:text-5xl font-bold text-yellow-300 mb-2">
           {{ activeParticipant?.fullName || 'No Participant' }}
         </div>
-        <div class="division text-2xl sm:text-3xl text-white mb-2">
-          Division: {{ activeParticipant?.divisions.length ? activeParticipant.divisions.join(', ') : 'N/A' }}
-        </div>
+        <!-- School -->
         <div class="school text-2xl sm:text-3xl text-white mb-2">
           School: {{ activeParticipant?.school_name || 'N/A' }}
         </div>
