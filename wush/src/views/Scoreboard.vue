@@ -41,6 +41,9 @@
                 >
                   {{ code }}
                 </span>
+                <span v-if="!deductionCodes.length" class="text-lg sm:text-xl text-white">
+                  No Deductions
+                </span>
               </div>
             </div>
           </div>
@@ -66,7 +69,7 @@
 
 <script setup>
 import { ref, onMounted, inject } from "vue";
-import axios from "axios";
+import axios from "../axios"; // Use custom Axios instance
 
 const socket = inject("socket");
 const activeParticipant = ref(null);
@@ -76,21 +79,17 @@ const deductionCodes = ref([]);
 
 const fetchActiveDivision = async () => {
   try {
-    const res = await axios.get(
-      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/divisions/active`
-    );
+    const res = await axios.get("/divisions/active");
     activeDivision.value = res.data;
   } catch (err) {
-    console.error("Error fetching active division:", err);
+    console.error("Error fetching active division:", err.response?.data || err.message);
     activeDivision.value = null;
   }
 };
 
 const fetchScoreboardData = async () => {
   try {
-    const res = await axios.get(
-      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`
-    );
+    const res = await axios.get("/tournament-details");
     const activeId = res.data.Active_ID;
     if (!activeId || !activeDivision.value) {
       activeParticipant.value = null;
@@ -99,24 +98,20 @@ const fetchScoreboardData = async () => {
       return;
     }
 
-    const participantRes = await axios.get(
-      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants/${activeId}`
-    );
+    const participantRes = await axios.get(`/participants/${activeId}`);
     activeParticipant.value = participantRes.data;
     activeParticipant.value.fullName = [activeParticipant.value.first_name, activeParticipant.value.middle_name, activeParticipant.value.last_name]
       .filter((part) => part)
       .join(" ");
 
-    const scoresRes = await axios.get(
-      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/published-scores/participant/${activeId}`
-    );
+    const scoresRes = await axios.get(`/published-scores/participant/${activeId}`);
     scores.value = scoresRes.data.scores.reduce((acc, { judge, score }) => {
       acc[judge] = score;
       return acc;
     }, {});
     deductionCodes.value = scoresRes.data.deduction_codes || [];
   } catch (err) {
-    console.error("Error fetching scoreboard data:", err);
+    console.error("Error fetching scoreboard data:", err.response?.data || err.message);
     activeParticipant.value = null;
     scores.value = {};
     deductionCodes.value = [];

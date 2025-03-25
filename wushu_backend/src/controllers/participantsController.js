@@ -166,6 +166,7 @@ export const addParticipantDivisionController = async (req, res) => {
 };
 
 export const removeParticipantDivisionController = async (req, res) => {
+  console.log('DELETE /participants/division, req.body:', req.body);
   const { participant_id, division_id } = req.body;
   if (!participant_id || !division_id) {
     return res.status(400).json({ error: "Participant ID and Division ID are required" });
