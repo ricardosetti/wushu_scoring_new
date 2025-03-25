@@ -101,7 +101,7 @@
 
 <script setup>
 import { ref, defineProps, onMounted, inject } from 'vue';
-import axios from 'axios';
+import axios from '../axios'; // Use custom Axios instance
 
 const socket = inject("socket");
 const props = defineProps({
@@ -110,30 +110,44 @@ const props = defineProps({
 
 const selectedActiveParticipant = ref(null);
 const activeParticipant = ref(null);
+const activeDivision = ref(null);
 const score = ref(5.0);
 const deductionCode = ref(null);
 const tempDeductions = ref([]);
 const removedDeductions = ref([]);
 const isJudgeEnabled = ref(false);
 
+const fetchActiveDivision = async () => {
+  try {
+    const res = await axios.get('/divisions/active');
+    activeDivision.value = res.data;
+  } catch (err) {
+    console.error("Error fetching active division:", err);
+    activeDivision.value = null;
+  }
+};
+
 const fetchActiveParticipant = async () => {
-  const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`);
-  if (res.data) {
-    selectedActiveParticipant.value = res.data.Active_ID || null;
-    isJudgeEnabled.value = res.data[props.judgeTitle.replace(" ", "_")] === 1;
-    if (selectedActiveParticipant.value) {
-      const participantRes = await axios.get(
-        `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants/${selectedActiveParticipant.value}`
-      );
-      const participant = participantRes.data;
-      // Compute full name
-      participant.fullName = [participant.first_name, participant.middle_name, participant.last_name]
-        .filter(part => part)
-        .join(' ');
-      activeParticipant.value = participant;
-    } else {
-      activeParticipant.value = null;
+  try {
+    const res = await axios.get('/tournament-details');
+    if (res.data) {
+      selectedActiveParticipant.value = res.data.Active_ID || null;
+      isJudgeEnabled.value = res.data[props.judgeTitle.replace(" ", "_")] === 1;
+      if (selectedActiveParticipant.value) {
+        const participantRes = await axios.get(`/participants/${selectedActiveParticipant.value}`);
+        const participant = participantRes.data;
+        // Compute full name
+        participant.fullName = [participant.first_name, participant.middle_name, participant.last_name]
+          .filter(part => part)
+          .join(' ');
+        activeParticipant.value = participant;
+      } else {
+        activeParticipant.value = null;
+      }
     }
+  } catch (err) {
+    console.error("Error fetching active participant:", err);
+    activeParticipant.value = null;
   }
 };
 
@@ -142,9 +156,7 @@ const fetchLatestScore = async () => {
   console.log(`Fetching latest score for ${props.judgeTitle}`);
   try {
     const judgeIdentifier = props.judgeTitle.replace("Judge ", "");
-    const res = await axios.get(
-      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores/latest?participant_id=${selectedActiveParticipant.value}&judge=${judgeIdentifier}`
-    );
+    const res = await axios.get(`/scores/latest?participant_id=${selectedActiveParticipant.value}&judge=${judgeIdentifier}`);
     console.log("Latest score:", res.data);
     if (res.data && res.data.score !== undefined) {
       score.value = res.data.score;
@@ -155,13 +167,11 @@ const fetchLatestScore = async () => {
 };
 
 const fetchDeductions = async () => {
-  if (!selectedActiveParticipant.value || !isJudgeEnabled.value) return;
+  if (!selectedActiveParticipant.value || !isJudgeEnabled.value || !activeDivision.value) return;
   console.log(`Fetching deductions for ${props.judgeTitle}`);
   try {
     const judgeIdentifier = props.judgeTitle.replace("Judge ", "");
-    const res = await axios.get(
-      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions/${selectedActiveParticipant.value}/${judgeIdentifier}`
-    );
+    const res = await axios.get(`/participant-deductions/${selectedActiveParticipant.value}/${judgeIdentifier}/${activeDivision.value.id}`);
     console.log("Deductions:", res.data);
     tempDeductions.value = res.data.map(deduction => ({
       ...deduction,
@@ -170,15 +180,14 @@ const fetchDeductions = async () => {
     }));
   } catch (err) {
     console.error("Error fetching deductions:", err);
+    tempDeductions.value = [];
   }
 };
 
 const applyDeduction = async () => {
-  if (!deductionCode.value) return;
+  if (!deductionCode.value || !activeDivision.value) return;
   try {
-    const res = await axios.get(
-      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/deductions/code/${deductionCode.value}`
-    );
+    const res = await axios.get(`/deductions/code/${deductionCode.value}`);
     if (res.data && res.data.deduction_value !== undefined) {
       score.value = Math.max(0, score.value - res.data.deduction_value);
       tempDeductions.value.push(res.data);
@@ -192,14 +201,14 @@ const applyDeduction = async () => {
 
 const removeDeduction = (index) => {
   const deduction = tempDeductions.value[index];
-  score.value = Math.min(5, score.value + deduction.deduction_value); // Add points back
+  score.value = Math.min(5, score.value + deduction.deduction_value);
   removedDeductions.value.push(tempDeductions.value[index]);
   tempDeductions.value.splice(index, 1);
 };
 
 const submitScore = async () => {
-  if (!selectedActiveParticipant.value) {
-    alert("No active participant selected!");
+  if (!selectedActiveParticipant.value || !activeDivision.value) {
+    alert("No active participant or division selected!");
     return;
   }
   if (!isJudgeEnabled.value) {
@@ -209,26 +218,22 @@ const submitScore = async () => {
   try {
     const judgeIdentifier = props.judgeTitle.replace("Judge ", "");
 
-    await axios.post(
-      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`,
-      {
-        participant_id: selectedActiveParticipant.value,
-        judge: judgeIdentifier,
-        score: score.value,
-      }
-    );
+    await axios.post('/scores', {
+      participant_id: selectedActiveParticipant.value,
+      judge: judgeIdentifier,
+      score: score.value,
+      division_id: activeDivision.value.id,
+    });
 
     if (tempDeductions.value.length > 0) {
       for (const deduction of tempDeductions.value) {
         if (deduction.deduction_id && !deduction.participant_deduction_id) {
-          await axios.post(
-            `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions`,
-            {
-              participant_id: selectedActiveParticipant.value,
-              deduction_id: deduction.deduction_id,
-              judge: judgeIdentifier,
-            }
-          );
+          await axios.post('/participant-deductions', {
+            participant_id: selectedActiveParticipant.value,
+            deduction_id: deduction.deduction_id,
+            judge: judgeIdentifier,
+            division_id: activeDivision.value.id,
+          });
         }
       }
     }
@@ -236,20 +241,15 @@ const submitScore = async () => {
     if (removedDeductions.value.length > 0) {
       for (const deduction of removedDeductions.value) {
         if (deduction.deduction_id) {
-          await axios.delete(
-            `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participant-deductions/${selectedActiveParticipant.value}/${deduction.deduction_id}/${judgeIdentifier}`
-          );
+          await axios.delete(`/participant-deductions/${selectedActiveParticipant.value}/${deduction.deduction_id}/${judgeIdentifier}/${activeDivision.value.id}`);
         }
       }
     }
 
-    await axios.post(
-      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`,
-      {
-        argument: props.judgeTitle.replace(" ", "_"),
-        value: 0,
-      }
-    );
+    await axios.post('/tournament-details', {
+      argument: props.judgeTitle.replace(" ", "_"),
+      value: 0,
+    });
     isJudgeEnabled.value = false;
 
     socket.emit("scoreSubmitted", { judge: props.judgeTitle.replace(" ", "_") });
@@ -265,8 +265,9 @@ const submitScore = async () => {
 };
 
 onMounted(async () => {
+  await fetchActiveDivision();
   await fetchActiveParticipant();
-  if (selectedActiveParticipant.value && isJudgeEnabled.value) {
+  if (selectedActiveParticipant.value && isJudgeEnabled.value && activeDivision.value) {
     await fetchLatestScore();
     await fetchDeductions();
   }
@@ -276,12 +277,9 @@ onMounted(async () => {
     isJudgeEnabled.value = data[props.judgeTitle.replace(" ", "_")] === 1;
     if (selectedActiveParticipant.value && isJudgeEnabled.value) {
       axios
-        .get(
-          `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants/${selectedActiveParticipant.value}`
-        )
+        .get(`/participants/${selectedActiveParticipant.value}`)
         .then((res) => {
           const participant = res.data;
-          // Compute full name
           participant.fullName = [participant.first_name, participant.middle_name, participant.last_name]
             .filter((part) => part)
             .join(" ");

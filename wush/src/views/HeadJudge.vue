@@ -131,14 +131,24 @@
         Publish Score
       </button>
     </div>
+
+    <!-- Logout Button -->
+    <button
+      @click="logout"
+      class="w-full bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition"
+    >
+      Logout
+    </button>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, inject, computed } from "vue";
-import axios from "axios";
+import axios from "../axios"; // Use custom Axios instance
+import { useRouter } from 'vue-router';
 
 const socket = inject("socket");
+const router = useRouter();
 const participants = ref([]);
 const filteredParticipants = computed(() => {
   if (!activeDivision.value) return [];
@@ -167,32 +177,44 @@ const showStartDivisionModal = ref(false);
 const selectedDivisionId = ref("");
 
 const fetchParticipants = async () => {
-  const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/participants`);
-  participants.value = res.data.map((participant) => {
-    participant.fullName = [participant.first_name, participant.middle_name, participant.last_name]
-      .filter((part) => part)
-      .join(" ");
-    return participant;
-  });
+  try {
+    const res = await axios.get("/participants");
+    participants.value = res.data.map((participant) => {
+      participant.fullName = [participant.first_name, participant.middle_name, participant.last_name]
+        .filter((part) => part)
+        .join(" ");
+      return participant;
+    });
+  } catch (err) {
+    console.error("Error fetching participants:", err.response?.data || err.message);
+    participants.value = [];
+  }
 };
 
 const fetchDivisions = async () => {
-  const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/divisions`);
-  divisions.value = res.data;
+  try {
+    const res = await axios.get("/divisions");
+    divisions.value = res.data;
+  } catch (err) {
+    console.error("Error fetching divisions:", err.response?.data || err.message);
+    divisions.value = [];
+  }
 };
 
 const fetchActiveDivision = async () => {
-  const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/divisions/active`);
-  activeDivision.value = res.data;
+  try {
+    const res = await axios.get("/divisions/active");
+    activeDivision.value = res.data;
+  } catch (err) {
+    console.error("Error fetching active division:", err.response?.data || err.message);
+    activeDivision.value = null;
+  }
 };
 
 const startDivision = async () => {
   if (!selectedDivisionId.value) return;
   try {
-    const res = await axios.post(
-      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/divisions/set-active`,
-      { division_id: selectedDivisionId.value }
-    );
+    const res = await axios.post("/divisions/set-active", { division_id: selectedDivisionId.value });
     activeDivision.value = res.data;
     socket.emit("activeDivisionUpdated", res.data);
     showStartDivisionModal.value = false;
@@ -204,15 +226,19 @@ const startDivision = async () => {
 };
 
 const fetchTournamentDetails = async () => {
-  const res = await axios.get(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`);
-  if (res.data) {
-    selectedActiveParticipant.value = res.data.Active_ID || null;
-    selectedOnDeckParticipant.value = res.data.OnDeck_ID || null;
-    judgeStates.value.Judge_A1 = res.data.Judge_A1 || 0;
-    judgeStates.value.Judge_A2 = res.data.Judge_A2 || 0;
-    judgeStates.value.Judge_B1 = res.data.Judge_B1 || 0;
-    judgeStates.value.Judge_B2 = res.data.Judge_B2 || 0;
-    allJudgesOn.value = Object.values(judgeStates.value).every((state) => state === 1);
+  try {
+    const res = await axios.get("/tournament-details");
+    if (res.data) {
+      selectedActiveParticipant.value = res.data.Active_ID || null;
+      selectedOnDeckParticipant.value = res.data.OnDeck_ID || null;
+      judgeStates.value.Judge_A1 = res.data.Judge_A1 || 0;
+      judgeStates.value.Judge_A2 = res.data.Judge_A2 || 0;
+      judgeStates.value.Judge_B1 = res.data.Judge_B1 || 0;
+      judgeStates.value.Judge_B2 = res.data.Judge_B2 || 0;
+      allJudgesOn.value = Object.values(judgeStates.value).every((state) => state === 1);
+    }
+  } catch (err) {
+    console.error("Error fetching tournament details:", err.response?.data || err.message);
   }
 };
 
@@ -229,16 +255,16 @@ const toggleAllJudges = () => {
 
 const saveTournamentDetails = async () => {
   try {
-    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`, {
+    await axios.post("/tournament-details", {
       argument: "Active_ID",
       value: selectedActiveParticipant.value,
     });
-    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`, {
+    await axios.post("/tournament-details", {
       argument: "OnDeck_ID",
       value: selectedOnDeckParticipant.value,
     });
     for (const judge of judges) {
-      await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/tournament-details`, {
+      await axios.post("/tournament-details", {
         argument: judge.id,
         value: judgeStates.value[judge.id],
       });
@@ -251,6 +277,7 @@ const saveTournamentDetails = async () => {
     alert("Tournament details saved successfully!");
     await fetchTournamentDetails();
   } catch (err) {
+    console.error("Error saving tournament details:", err.response?.data || err.message);
     alert("Error saving tournament details.");
   }
 };
@@ -261,9 +288,7 @@ const calculateFinalScore = async () => {
     return;
   }
   try {
-    const res = await axios.get(
-      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores/participant/${selectedActiveParticipant.value}`
-    );
+    const res = await axios.get(`/scores/participant/${selectedActiveParticipant.value}`);
     console.log("Fetched scores:", res.data);
     const scores = res.data.reduce((acc, { judge, score }) => {
       acc[judge] = Number(score);
@@ -295,17 +320,17 @@ const calculateFinalScore = async () => {
       return;
     }
 
-    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`, {
+    await axios.post("/scores", {
       participant_id: selectedActiveParticipant.value,
       judge: "FinalA",
       score: finalA,
     });
-    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`, {
+    await axios.post("/scores", {
       participant_id: selectedActiveParticipant.value,
       judge: "FinalB",
       score: finalB,
     });
-    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores`, {
+    await axios.post("/scores", {
       participant_id: selectedActiveParticipant.value,
       judge: "Final",
       score: final,
@@ -324,9 +349,7 @@ const publishScore = async () => {
     return;
   }
   try {
-    const res = await axios.get(
-      `http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/scores/participant/${selectedActiveParticipant.value}`
-    );
+    const res = await axios.get(`/scores/participant/${selectedActiveParticipant.value}`);
     const scores = res.data.reduce((acc, { judge, score }) => {
       acc[judge] = score;
       return acc;
@@ -344,7 +367,7 @@ const publishScore = async () => {
       score: scores[judge],
     }));
 
-    await axios.post(`http://${process.env.VITE_SERVER_HOST}:${process.env.VITE_SERVER_PORT}/published-scores`, {
+    await axios.post("/published-scores", {
       participant_id: selectedActiveParticipant.value,
       scores: publishData,
     });
@@ -359,6 +382,12 @@ const publishScore = async () => {
     console.error("Error publishing score:", err.response?.data || err.message);
     alert("Error publishing score. Check console for details.");
   }
+};
+
+const logout = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('role');
+  router.push('/login');
 };
 
 onMounted(() => {

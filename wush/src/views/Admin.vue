@@ -19,22 +19,36 @@
     >
       Manage Divisions
     </button>
+    <button
+      @click="logout"
+      class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mt-4"
+    >
+      Logout
+    </button>
   </div>
 </template>
 
-<script>
-export default {
-  methods: {
-    openSchoolManagement() {
-      this.$router.push('/admin/schools');
-    },
-    openParticipantManagement() {
-      this.$router.push('/admin/participants');
-    },
-    openDivisionManagement() {
-      this.$router.push('/admin/divisions');
-    },
-  },
+<script setup>
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
+
+const openSchoolManagement = () => {
+  router.push('/admin/schools');
+};
+
+const openParticipantManagement = () => {
+  router.push('/admin/participants');
+};
+
+const openDivisionManagement = () => {
+  router.push('/admin/divisions');
+};
+
+const logout = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('role');
+  router.push('/login');
 };
 </script>
 
