@@ -51,24 +51,37 @@
     <!-- School List -->
     <div v-if="schools.length">
       <h3 class="text-lg font-bold mb-2">Schools</h3>
-      <div v-for="school in schools" :key="school.id" class="border p-2 mb-2 flex justify-between">
-        <span>{{ school.school_name }}</span>
-        <div>
-          <button @click="editSchool(school)" class="bg-yellow-500 text-white px-2 py-1 rounded mr-2 hover:bg-yellow-600">
-            Edit
-          </button>
-          <button @click="deleteSchool(school.id)" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">
-            Delete
-          </button>
+      <div v-for="school in schools" :key="school.id" class="border p-4 mb-4 rounded-lg shadow-sm bg-white">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="font-semibold">{{ school.school_name }}</h3>
+            <p class="text-gray-600 text-sm">{{ school.school_address }}</p>
+          </div>
+          <div class="flex gap-2">
+            <button @click="editSchool(school)" class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600">
+              Edit
+            </button>
+            <button @click="deleteSchool(school.id)" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">
+              Delete
+            </button>
+            <button @click="generateLink(school)" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
+              Generate Link
+            </button>
+          </div>
+        </div>
+
+        <div v-if="school.registration_link" class="mt-3 p-3 bg-gray-50 rounded">
+          <p class="text-sm font-medium">Registration Link:</p>
+          <input class="border p-2 w-full rounded text-sm bg-white" :value="school.registration_link" readonly @click="$event.target.select()" />
+          <div class="flex justify-center mt-3">
+            <img v-if="school.qr_code_data_url" :src="school.qr_code_data_url" alt="QR Code" class="w-32 h-32" />
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Logout Button -->
-    <button
-      @click="logout"
-      class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mt-4"
-    >
+    <button @click="logout" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mt-4">
       Logout
     </button>
   </div>
@@ -76,7 +89,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import axios from '../axios'; // Use custom Axios instance
+import axios from '../axios';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -92,20 +105,30 @@ const newSchool = ref({
 const editSchoolId = ref(null);
 const logoPreview = ref(null);
 
-const getLogoPreview = computed(() => {
-  if (logoPreview.value) {
-    return logoPreview.value;
-  }
-  return null;
-});
+const getLogoPreview = computed(() => logoPreview.value || null);
 
 const fetchSchools = async () => {
   try {
     const response = await axios.get('/schools');
-    schools.value = response.data;
+    schools.value = response.data.map(school => ({
+      ...school,
+      registration_link: school.registration_link || null,
+      qr_code_data_url: school.school_qr_code ? `data:image/png;base64,${school.school_qr_code}` : null,
+    }));
   } catch (error) {
     console.error('Error fetching schools:', error.response ? error.response.data : error.message);
     schools.value = [];
+  }
+};
+
+const generateLink = async (school) => {
+  try {
+    const response = await axios.post(`/schools/${school.id}/generate-registration-link`);
+    school.registration_link = response.data.registration_link;
+    school.qr_code_data_url = response.data.qr_code_data_url;
+  } catch (error) {
+    console.error('Error generating registration link:', error.response ? error.response.data : error.message);
+    alert('Failed to generate registration link.');
   }
 };
 
@@ -116,30 +139,23 @@ const handleLogoUpload = (event) => {
     logoPreview.value = URL.createObjectURL(file);
   } else {
     newSchool.value.school_logo = editSchoolId.value ? schools.value.find(s => s.id === editSchoolId.value)?.school_logo || null : null;
-    logoPreview.value = newSchool.value.school_logo; // Use base64 string for existing logo
+    logoPreview.value = newSchool.value.school_logo;
     console.warn('Please upload a valid JPEG file.');
   }
 };
 
 const handleSubmit = () => {
-  console.log('Submitting form, editSchoolId:', editSchoolId.value, 'newSchool:', newSchool.value);
-  if (editSchoolId.value) {
-    updateSchool();
-  } else {
-    addSchool();
-  }
+  if (editSchoolId.value) updateSchool();
+  else addSchool();
 };
 
 const addSchool = async () => {
-  console.log('Adding new school:', newSchool.value);
   const formData = new FormData();
   formData.append('school_name', newSchool.value.school_name);
   formData.append('school_address', newSchool.value.school_address);
   formData.append('school_contact', newSchool.value.school_contact);
   formData.append('school_phone', newSchool.value.school_phone);
-  if (newSchool.value.school_logo && newSchool.value.school_logo.type) {
-    formData.append('school_logo', newSchool.value.school_logo);
-  }
+  if (newSchool.value.school_logo?.type) formData.append('school_logo', newSchool.value.school_logo);
 
   try {
     const response = await axios.post('/schools', formData, {
@@ -156,21 +172,16 @@ const editSchool = (school) => {
   editSchoolId.value = school.id;
   newSchool.value = { ...school };
   showAddForm.value = true;
-  logoPreview.value = school.school_logo; // Set base64 string for preview
+  logoPreview.value = school.school_logo;
 };
 
 const updateSchool = async () => {
-  console.log('Updating school with id:', editSchoolId.value);
   const formData = new FormData();
   formData.append('school_name', newSchool.value.school_name);
   formData.append('school_address', newSchool.value.school_address);
   formData.append('school_contact', newSchool.value.school_contact);
   formData.append('school_phone', newSchool.value.school_phone);
-  if (newSchool.value.school_logo && newSchool.value.school_logo.type) {
-    formData.append('school_logo', newSchool.value.school_logo);
-  } else {
-    // Do not append school_logo to preserve the existing one
-  }
+  if (newSchool.value.school_logo?.type) formData.append('school_logo', newSchool.value.school_logo);
 
   try {
     const response = await axios.put(`/schools/${editSchoolId.value}`, formData, {
@@ -198,9 +209,7 @@ const deleteSchool = async (id) => {
 const resetForm = () => {
   newSchool.value = { school_name: '', school_address: '', school_contact: '', school_phone: '', school_logo: null };
   editSchoolId.value = null;
-  if (logoPreview.value && typeof logoPreview.value === 'string' && logoPreview.value.startsWith('blob:')) {
-    URL.revokeObjectURL(logoPreview.value);
-  }
+  if (logoPreview.value?.startsWith?.('blob:')) URL.revokeObjectURL(logoPreview.value);
   logoPreview.value = null;
   showAddForm.value = false;
 };
@@ -226,14 +235,11 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  if (logoPreview.value && typeof logoPreview.value === 'string' && logoPreview.value.startsWith('blob:')) {
-    URL.revokeObjectURL(logoPreview.value);
-  }
+  if (logoPreview.value?.startsWith?.('blob:')) URL.revokeObjectURL(logoPreview.value);
 });
 </script>
 
 <style scoped>
-/* Constrain logo size to 50x50 pixels */
 img {
   width: 50px;
   height: 50px;

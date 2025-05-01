@@ -56,3 +56,11 @@ export const getRegistrationById = async (id) => {
   const result = await pool.query("SELECT * FROM registrations WHERE id = $1", [id]);
   return result.rows[0] || null;
 };
+
+export const getRegistrationByToken = async (token) => {
+  const result = await pool.query(
+    "SELECT id, school_name, school_address FROM schools WHERE registration_token = $1",
+    [token]
+  );
+  return result.rows[0] || null;
+};

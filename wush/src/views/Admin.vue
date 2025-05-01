@@ -15,10 +15,17 @@
     </button>
     <button
       @click="openDivisionManagement"
-      class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+      class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2"
     >
       Manage Divisions
     </button>
+    <button
+      @click="openRegistrationLink"
+      class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600"
+    >
+      Test Registration Link
+    </button>
+
     <button
       @click="logout"
       class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mt-4"
@@ -43,6 +50,12 @@ const openParticipantManagement = () => {
 
 const openDivisionManagement = () => {
   router.push('/admin/divisions');
+};
+
+const openRegistrationLink = () => {
+  // Replace this token if needed in the future
+  const token = 'e64077fe-9b62-4be0-a4d1-11e1a5620c38';
+  router.push(`/register/${token}`);
 };
 
 const logout = () => {

@@ -14,6 +14,8 @@ import publishedScoresRoutes from "./routes/publishedScoresRoutes.js";
 import schoolRoutes from "./routes/schoolRoutes.js";
 import { authRoutes, authenticateToken, authorizeRole } from "./routes/auth.js";
 import { fetchParticipants } from "./controllers/participantsController.js"; // Import directly
+import registrationRoutes from "./routes/registrationRoutes.js";
+import tournamentRoutes from "./routes/tournamentRoutes.js";
 
 dotenv.config();
 const app = express();
@@ -81,6 +83,8 @@ app.use("/deductions", authenticateToken, deductionRoutes);
 app.use("/participant-deductions", authenticateToken, participantDeductionRoutes);
 app.use("/published-scores", authenticateToken, publishedScoresRoutes);
 app.use("/schools", authenticateToken, schoolRoutes);
+app.use("/registrations", registrationRoutes);
+app.use("/tournaments", tournamentRoutes);
 
 // Socket.IO events
 io.on("connection", (socket) => {

@@ -11,6 +11,7 @@ import SchoolManagement from '../views/SchoolManagement.vue';
 import ParticipantManagement from '../views/ParticipantManagement.vue';
 import DivisionManagement from '../views/DivisionManagement.vue';
 import Login from '../views/Login.vue';
+import Register from '../views/Register.vue';
 
 const routes = [
   { path: "/judge-a1", component: JudgeA1, meta: { requiresAuth: true, roles: ['judge_a'] } },
@@ -26,6 +27,7 @@ const routes = [
   { path: "/admin/divisions", component: DivisionManagement, meta: { requiresAuth: true, roles: ['admin'] } },
   { path: "/login", name: 'Login', component: Login },
   { path: "/", redirect: "/scoreboard" },
+  {path: '/register/:token', name: 'Register', component: Register, props: true},
 ];
 
 const router = createRouter({
