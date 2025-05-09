@@ -70,6 +70,9 @@
           </div>
         </div>
 
+        <div v-if="school.error" class="mt-3 text-red-500 text-sm">
+          {{ school.error }}
+        </div>
         <div v-if="school.registration_link" class="mt-3 p-3 bg-gray-50 rounded">
           <p class="text-sm font-medium">Registration Link:</p>
           <input class="border p-2 w-full rounded text-sm bg-white" :value="school.registration_link" readonly @click="$event.target.select()" />
@@ -112,8 +115,11 @@ const fetchSchools = async () => {
     const response = await axios.get('/schools');
     schools.value = response.data.map(school => ({
       ...school,
-      registration_link: school.registration_link || null,
-      qr_code_data_url: school.school_qr_code ? `data:image/png;base64,${school.school_qr_code}` : null,
+      registration_link: school.registration_token
+        ? `${window.location.origin}/register?token=${school.registration_token}`
+        : school.registration_link,
+      qr_code_data_url: school.registration_qr_code,
+      error: null,
     }));
   } catch (error) {
     console.error('Error fetching schools:', error.response ? error.response.data : error.message);
@@ -123,12 +129,17 @@ const fetchSchools = async () => {
 
 const generateLink = async (school) => {
   try {
-    const response = await axios.post(`/schools/${school.id}/generate-registration-link`);
-    school.registration_link = response.data.registration_link;
-    school.qr_code_data_url = response.data.qr_code_data_url;
+    const response = await axios.post(`/schools/${school.id}/generate-token`);
+    const updatedSchool = response.data;
+    school.registration_token = updatedSchool.registration_token;
+    school.expires_at = updatedSchool.expires_at;
+    school.registration_link = `${window.location.origin}/register?token=${updatedSchool.registration_token}`;
+    school.qr_code_data_url = updatedSchool.registration_qr_code;
+    school.error = null;
   } catch (error) {
-    console.error('Error generating registration link:', error.response ? error.response.data : error.message);
-    alert('Failed to generate registration link.');
+    const errorMessage = error.response?.data?.error || 'Failed to generate registration link';
+    school.error = errorMessage;
+    console.error('Error generating registration link:', errorMessage);
   }
 };
 
@@ -161,7 +172,12 @@ const addSchool = async () => {
     const response = await axios.post('/schools', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    schools.value.push(response.data);
+    schools.value.push({
+      ...response.data,
+      registration_link: null,
+      qr_code_data_url: null,
+      error: null,
+    });
     resetForm();
   } catch (error) {
     console.error('Error adding school:', error.response ? error.response.data : error.message);
@@ -188,7 +204,14 @@ const updateSchool = async () => {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     const index = schools.value.findIndex(s => s.id === editSchoolId.value);
-    if (index !== -1) schools.value[index] = response.data;
+    if (index !== -1) {
+      schools.value[index] = {
+        ...response.data,
+        registration_link: schools.value[index].registration_link,
+        qr_code_data_url: schools.value[index].qr_code_data_url,
+        error: null,
+      };
+    }
     resetForm();
   } catch (error) {
     console.error('Error updating school:', error.response ? error.response.data : error.message);

@@ -27,6 +27,9 @@
         <li v-if="role === 'admin'">
           <router-link to="/admin" class="mx-2 hover:underline">Admin</router-link>
         </li>
+        <li v-if="role === 'participant'">
+          <router-link to="/profile" class="mx-2 hover:underline">Profile</router-link>
+        </li>
         <li v-if="role">
           <button @click="logout" class="mx-2 hover:underline">Logout</button>
         </li>
@@ -54,7 +57,6 @@ const logout = () => {
   router.push('/login');
 };
 
-// Watch for route changes to update role (e.g., after login/logout)
 watch(
   () => route.path,
   () => {
