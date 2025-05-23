@@ -6,7 +6,7 @@
       <h3 class="text-xl font-semibold text-primary">Participant</h3>
       <p><strong>Name:</strong> {{ activeParticipant.fullName || 'N/A' }}</p>
       <p><strong>School:</strong> {{ activeParticipant.school_name || 'N/A' }}</p>
-      <p><strong>Divisions:</strong> {{ activeParticipant.divisions.length ? activeParticipant.divisions.join(', ') : 'N/A' }}</p>
+      <p><strong>Divisions:</strong> {{ activeParticipant.divisions.length ? activeParticipant.divisions.map(d => d.division_name).join(', ') : 'N/A' }}</p>
     </div>
     <div v-else-if="!isJudgeEnabled" class="text-center bg-red-100 p-4 rounded-lg">
       <h3 class="text-xl font-semibold text-red-500">Judge Disabled - Waiting for Head Judge</h3>
@@ -20,7 +20,7 @@
     <!-- Judges A1 & A2: Deduction System -->
     <div v-if="judgeTitle === 'Judge A1' || judgeTitle === 'Judge A2'" class="space-y-4">
       <h3 class="text-lg font-semibold text-primary">Performance Score</h3>
-      <div class="w-full border rounded-lg p-3 text-center bg-gray-100 text-xl">{{ score }}</div>
+      <div class="w-full border rounded-lg p-3 text-center bg-gray-100 text-xl">{{ score.toFixed(1) }}</div>
       
       <h3 class="text-lg font-semibold text-primary">Enter Deduction Code</h3>
       <input 
@@ -85,7 +85,7 @@
         class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:bg-gray-400 disabled:cursor-not-allowed"
         :disabled="!isJudgeEnabled"
       />
-      <p class="text-center text-lg">Score: {{ score }}</p>
+      <p class="text-center text-lg">Score: {{ score.toFixed(1) }}</p>
     </div>
     
     <button 
@@ -100,8 +100,8 @@
 </template>
 
 <script setup>
-import { ref, defineProps, onMounted, inject } from 'vue';
-import axios from '../axios'; // Use custom Axios instance
+import { ref, defineProps, onMounted, onUnmounted, inject } from 'vue';
+import axios from '../axios';
 
 const socket = inject("socket");
 const props = defineProps({
@@ -136,7 +136,6 @@ const fetchActiveParticipant = async () => {
       if (selectedActiveParticipant.value) {
         const participantRes = await axios.get(`/participants/${selectedActiveParticipant.value}`);
         const participant = participantRes.data;
-        // Compute full name
         participant.fullName = [participant.first_name, participant.middle_name, participant.last_name]
           .filter(part => part)
           .join(' ');
@@ -159,7 +158,7 @@ const fetchLatestScore = async () => {
     const res = await axios.get(`/scores/latest?participant_id=${selectedActiveParticipant.value}&judge=${judgeIdentifier}`);
     console.log("Latest score:", res.data);
     if (res.data && res.data.score !== undefined) {
-      score.value = res.data.score;
+      score.value = parseFloat(res.data.score.toFixed(1));
     }
   } catch (err) {
     console.error("Error fetching latest score:", err);
@@ -171,7 +170,9 @@ const fetchDeductions = async () => {
   console.log(`Fetching deductions for ${props.judgeTitle}`);
   try {
     const judgeIdentifier = props.judgeTitle.replace("Judge ", "");
-    const res = await axios.get(`/participant-deductions/${selectedActiveParticipant.value}/${judgeIdentifier}/${activeDivision.value.id}`);
+    const res = await axios.get(`/participant-deductions/${selectedActiveParticipant.value}/${judgeIdentifier}`, {
+      params: { division_id: activeDivision.value.id }
+    });
     console.log("Deductions:", res.data);
     tempDeductions.value = res.data.map(deduction => ({
       ...deduction,
@@ -189,8 +190,11 @@ const applyDeduction = async () => {
   try {
     const res = await axios.get(`/deductions/code/${deductionCode.value}`);
     if (res.data && res.data.deduction_value !== undefined) {
-      score.value = Math.max(0, score.value - res.data.deduction_value);
-      tempDeductions.value.push(res.data);
+      score.value = parseFloat(Math.max(0, score.value - res.data.deduction_value).toFixed(1));
+      tempDeductions.value.push({
+        ...res.data,
+        deduction_code: deductionCode.value
+      });
     } else {
       alert("Invalid Deduction Code");
     }
@@ -201,7 +205,7 @@ const applyDeduction = async () => {
 
 const removeDeduction = (index) => {
   const deduction = tempDeductions.value[index];
-  score.value = Math.min(5, score.value + deduction.deduction_value);
+  score.value = parseFloat(Math.min(5, score.value + deduction.deduction_value).toFixed(1));
   removedDeductions.value.push(tempDeductions.value[index]);
   tempDeductions.value.splice(index, 1);
 };
@@ -241,7 +245,9 @@ const submitScore = async () => {
     if (removedDeductions.value.length > 0) {
       for (const deduction of removedDeductions.value) {
         if (deduction.deduction_id) {
-          await axios.delete(`/participant-deductions/${selectedActiveParticipant.value}/${deduction.deduction_id}/${judgeIdentifier}/${activeDivision.value.id}`);
+          await axios.delete(`/participant-deductions/${selectedActiveParticipant.value}/${deduction.deduction_id}/${judgeIdentifier}`, {
+            params: { division_id: activeDivision.value.id }
+          });
         }
       }
     }
@@ -305,10 +311,16 @@ onMounted(async () => {
 
   socket.on("deductionUpdated", (data) => {
     console.log("Deduction updated:", data);
-    if (data.participantId === selectedActiveParticipant.value) {
+    if (data.participantId === selectedActiveParticipant.value && data.division_id === activeDivision.value?.id) {
       fetchDeductions();
     }
   });
+});
+
+onUnmounted(() => {
+  socket.off("tournamentDetailsUpdated");
+  socket.off("scorePublished");
+  socket.off("deductionUpdated");
 });
 </script>
 

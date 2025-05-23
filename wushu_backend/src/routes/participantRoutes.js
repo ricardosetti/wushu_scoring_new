@@ -8,6 +8,7 @@ import {
   removeParticipantDivisionController,
   fetchParticipantDivisions,
   deleteParticipantController,
+  fetchParticipantsByDivision,
 } from "../controllers/participantsController.js";
 
 const router = express.Router();
@@ -23,8 +24,8 @@ router.delete("/division", removeParticipantDivisionController);
 router.delete("/:id", deleteParticipantController);
 
 // Division-related routes
+router.get("/by-division", fetchParticipantsByDivision); // Added for fetchParticipantsByDivision
 router.get("/:participant_id/divisions", fetchParticipantDivisions);
 router.post("/division", addParticipantDivisionController);
-
 
 export default router;

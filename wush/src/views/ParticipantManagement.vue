@@ -123,7 +123,11 @@
     <div v-if="participants.length">
       <h3 class="text-lg font-bold mb-2">Participants</h3>
       <div v-for="participant in participants" :key="participant.id" class="border p-2 mb-2 flex justify-between items-center">
-        <span>{{ participant.first_name }} {{ participant.middle_name || '' }} {{ participant.last_name }} ({{ participant.divisions?.length ? participant.divisions.join(', ') : 'No Divisions' }}, {{ participant.school_name || 'No School' }})</span>
+        <span>
+          {{ participant.first_name }} {{ participant.middle_name || '' }} {{ participant.last_name }}
+          ({{ participant.divisions?.length ? participant.divisions.map(div => div.division_name).join(', ') : 'No Divisions' }},
+          {{ participant.school_name || 'No School' }})
+        </span>
         <div>
           <button @click="editParticipant(participant)" class="bg-yellow-500 text-white px-2 py-1 rounded mr-2 hover:bg-yellow-600">
             Edit
@@ -198,7 +202,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import axios from '../axios'; // Use custom Axios instance
+import axios from '../axios';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -209,12 +213,12 @@ const newParticipant = ref({
   first_name: '',
   middle_name: '',
   last_name: '',
-  school_id: null, // Changed from ''
+  school_id: null,
   birthdate: '',
   height_feet: null,
   height_inches: null,
   weight: null,
-  gender: null, // Changed from ''
+  gender: null,
   phone: '',
   emergency_contact_name: '',
   emergency_contact_phone: '',
@@ -243,7 +247,6 @@ const fetchParticipants = async () => {
     console.log('Fetching participants...');
     const response = await axios.get('/participants');
     console.log('Participants response:', response.data);
-    // Transform birthdate to YYYY-MM-DD format
     const transformedParticipants = response.data.map(participant => ({
       ...participant,
       birthdate: participant.birthdate ? participant.birthdate.split('T')[0] : '',
@@ -338,12 +341,11 @@ const addParticipant = async () => {
 const editParticipant = (participant) => {
   editParticipantId.value = participant.id;
   newParticipant.value = { ...participant };
-  // Convert birthdate to YYYY-MM-DD format if it's a Date object
   if (newParticipant.value.birthdate instanceof Date) {
     newParticipant.value.birthdate = newParticipant.value.birthdate.toISOString().split('T')[0];
   }
-  delete newParticipant.value.divisions; // Remove divisions, as they are managed separately
-  delete newParticipant.value.school_name; // Remove school_name, as it's computed
+  delete newParticipant.value.divisions;
+  delete newParticipant.value.school_name;
   showAddForm.value = true;
 };
 
@@ -354,12 +356,11 @@ const updateParticipant = async () => {
     console.log('Update response:', response.data);
     const index = participants.value.findIndex(p => p.id === editParticipantId.value);
     if (index !== -1) {
-      // Preserve the divisions field from the original participant
       const originalParticipant = participants.value[index];
       participants.value[index] = {
         ...response.data,
         birthdate: response.data.birthdate ? response.data.birthdate.split('T')[0] : '',
-        divisions: originalParticipant.divisions, // Preserve divisions
+        divisions: originalParticipant.divisions,
       };
     }
     participants.value.sort((a, b) => {

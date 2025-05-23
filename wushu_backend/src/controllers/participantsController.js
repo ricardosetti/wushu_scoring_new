@@ -63,12 +63,13 @@ export const createParticipant = async (req, res) => {
       zip_code,
       participant_rank
     );
+    // Fetch divisions separately since addParticipant doesn't include them
+    participant.divisions = await getParticipantDivisions(participant.id);
     res.status(201).json(participant);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 export const fetchParticipantById = async (req, res) => {
   const { id } = req.params;
@@ -133,6 +134,8 @@ export const updateParticipantController = async (req, res) => {
     if (!participant) {
       return res.status(404).json({ error: "Participant not found" });
     }
+    // Fetch divisions separately since updateParticipant doesn't include them
+    participant.divisions = await getParticipantDivisions(participant.id);
     res.json(participant);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -187,6 +190,22 @@ export const fetchParticipantDivisions = async (req, res) => {
   try {
     const divisions = await getParticipantDivisions(participant_id);
     res.json(divisions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const fetchParticipantsByDivision = async (req, res) => {
+  const { division_id } = req.query;
+  if (!division_id) {
+    return res.status(400).json({ error: "Division ID is required" });
+  }
+  try {
+    const participants = await getParticipants();
+    const filteredParticipants = participants.filter(participant =>
+      participant.divisions.some(d => d.id === parseInt(division_id))
+    );
+    res.json(filteredParticipants);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

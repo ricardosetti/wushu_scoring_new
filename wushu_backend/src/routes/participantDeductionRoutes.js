@@ -5,6 +5,6 @@ const router = express.Router();
 
 router.post("/", createParticipantDeduction);
 router.get("/:participant_id/:judge", fetchParticipantDeductions);
-router.delete("/:participant_id/:deduction_id/:judge", deleteParticipantDeduction); // New DELETE route
+router.delete("/:participant_id/:deduction_id/:judge", deleteParticipantDeduction);
 
 export default router;

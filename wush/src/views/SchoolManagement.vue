@@ -77,7 +77,7 @@
           <p class="text-sm font-medium">Registration Link:</p>
           <input class="border p-2 w-full rounded text-sm bg-white" :value="school.registration_link" readonly @click="$event.target.select()" />
           <div class="flex justify-center mt-3">
-            <img v-if="school.qr_code_data_url" :src="school.qr_code_data_url" alt="QR Code" class="w-32 h-32" />
+            <img v-if="school.qr_code_data_url" :src="school.qr_code_data_url" alt="QR Code" class="w-100 h-200" />
           </div>
         </div>
       </div>

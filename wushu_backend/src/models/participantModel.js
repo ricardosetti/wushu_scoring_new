@@ -1,8 +1,12 @@
 import pool from "./db.js";
 
 export const getAllParticipants = async () => {
-  const result = await pool.query("SELECT * FROM participants ORDER BY name ASC");
-  return result.rows;
+  try {
+    const result = await pool.query("SELECT * FROM participants ORDER BY last_name ASC, first_name ASC");
+    return result.rows;
+  } catch (err) {
+    throw new Error(err.message);
+  }
 };
 
 export const addParticipant = async (
@@ -48,12 +52,22 @@ export const addParticipant = async (
 export const getParticipants = async () => {
   try {
     const result = await pool.query(`
-      SELECT p.*, s.school_name,
-             ARRAY_AGG(d.division_name) AS divisions
+      SELECT p.*,
+             s.school_name,
+             COALESCE(
+               (SELECT ARRAY_AGG(
+                 jsonb_build_object(
+                   'id', d.id,
+                   'division_name', d.division_name
+                 )
+               )
+               FROM divisions d
+               JOIN tournament_participants tp ON d.id = tp.division_id
+               WHERE tp.participant_id = p.id),
+               '{}'
+             ) AS divisions
       FROM participants p
       LEFT JOIN schools s ON p.school_id = s.id
-      LEFT JOIN tournament_participants tp ON p.id = tp.participant_id
-      LEFT JOIN divisions d ON tp.division_id = d.id
       GROUP BY p.id, s.school_name
       ORDER BY p.last_name, p.first_name
     `);
@@ -66,20 +80,30 @@ export const getParticipants = async () => {
 export const getParticipantById = async (id) => {
   try {
     const result = await pool.query(`
-      SELECT p.*, s.school_name,
-             ARRAY_AGG(d.division_name) AS divisions
+      SELECT p.*,
+             s.school_name,
+             COALESCE(
+               (SELECT ARRAY_AGG(
+                 jsonb_build_object(
+                   'id', d.id,
+                   'division_name', d.division_name
+                 )
+               )
+               FROM divisions d
+               JOIN tournament_participants tp ON d.id = tp.division_id
+               WHERE tp.participant_id = p.id),
+               '{}'
+             ) AS divisions
       FROM participants p
       LEFT JOIN schools s ON p.school_id = s.id
-      LEFT JOIN tournament_participants tp ON p.id = tp.participant_id
-      LEFT JOIN divisions d ON tp.division_id = d.id
       WHERE p.id = $1
       GROUP BY p.id, s.school_name
     `, [id]);
-    return result.rows[0];
+    return result.rows[0] || null;
   } catch (err) {
     throw new Error(err.message);
   }
-}
+};
 
 export const updateParticipant = async (
   id,
@@ -108,7 +132,8 @@ export const updateParticipant = async (
       SET first_name = $1, middle_name = $2, last_name = $3, school_id = $4, birthdate = $5,
           height_feet = $6, height_inches = $7, weight = $8, gender = $9, phone = $10,
           emergency_contact_name = $11, emergency_contact_phone = $12, street = $13,
-          city = $14, state = $15, country = $16, zip_code = $17, participant_rank = $18
+          city = $14, state = $15, country = $16, zip_code = $17, participant_rank = $18,
+          updated_at = CURRENT_TIMESTAMP
       WHERE id = $19
       RETURNING *,
              (SELECT school_name FROM schools s WHERE s.id = school_id) AS school_name
@@ -117,7 +142,7 @@ export const updateParticipant = async (
       weight, gender, phone, emergency_contact_name, emergency_contact_phone, street,
       city, state, country, zip_code, participant_rank, id
     ]);
-    return result.rows[0];
+    return result.rows[0] || null;
   } catch (err) {
     throw new Error(err.message);
   }
@@ -126,13 +151,12 @@ export const updateParticipant = async (
 export const deleteParticipant = async (id) => {
   try {
     const result = await pool.query('DELETE FROM participants WHERE id = $1 RETURNING *', [id]);
-    return result.rows[0];
+    return result.rows[0] || null;
   } catch (err) {
     throw new Error(err.message);
   }
 };
 
-// New methods for managing participant-division relationships
 export const addParticipantDivision = async (participant_id, division_id) => {
   try {
     const result = await pool.query(`
@@ -153,7 +177,7 @@ export const removeParticipantDivision = async (participant_id, division_id) => 
       WHERE participant_id = $1 AND division_id = $2
       RETURNING *
     `, [participant_id, division_id]);
-    return result.rows[0];
+    return result.rows[0] || null;
   } catch (err) {
     throw new Error(err.message);
   }
@@ -167,7 +191,6 @@ export const getParticipantDivisions = async (participant_id) => {
       JOIN tournament_participants tp ON d.id = tp.division_id
       WHERE tp.participant_id = $1
     `, [participant_id]);
-    console.log('getParticipantDivisions result:', result.rows);
     return result.rows;
   } catch (err) {
     throw new Error(err.message);

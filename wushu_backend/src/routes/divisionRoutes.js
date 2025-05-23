@@ -1,9 +1,9 @@
 import express from "express";
 import {
   createDivision,
-  fetchDivisions,
+  fetchAllDivisions,
   fetchDivisionById,
-  getActiveDivisionController,
+  fetchActiveDivision,
   setActiveDivisionController,
   clearActiveDivisionController,
   updateDivisionController,
@@ -12,13 +12,16 @@ import {
 
 const router = express.Router();
 
+// Public routes
+router.get("/", fetchAllDivisions);
+router.get("/active", fetchActiveDivision);
+
+// Protected routes (authentication required via server.js middleware)
 router.post("/", createDivision);
-router.get("/", fetchDivisions);
-router.get("/active", getActiveDivisionController);
-router.post("/set-active", setActiveDivisionController);
-router.post("/clear-active", clearActiveDivisionController);
 router.get("/:id", fetchDivisionById);
 router.put("/:id", updateDivisionController);
 router.delete("/:id", deleteDivisionController);
+router.post("/set-active", setActiveDivisionController);
+router.post("/clear-active", clearActiveDivisionController);
 
 export default router;

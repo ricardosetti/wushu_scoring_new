@@ -1,30 +1,40 @@
 import pool from './db.js';
 
-export const addRegistrationDivision = async (registration_id, division_id, client = null) => {
-  const db = client || pool; // Use the provided client (for transactions) or default to pool
-  const result = await db.query(
-    'INSERT INTO registrations_divisions (registration_id, division_id) VALUES ($1, $2) RETURNING *',
-    [registration_id, division_id]
-  );
-  return result.rows[0];
+export const addRegistrationDivision = async (registrationId, divisionId, client = pool) => {
+  const useClient = client !== pool ? client : await pool.connect();
+  try {
+    const result = await useClient.query(
+      'INSERT INTO registrations_divisions (registration_id, division_id) VALUES ($1, $2) RETURNING *',
+      [registrationId, divisionId]
+    );
+    return result.rows[0];
+  } finally {
+    if (client === pool) useClient.release();
+  }
 };
 
-export const getDivisionsForRegistration = async (registration_id) => {
-  const result = await pool.query(
-    `
-    SELECT d.* FROM divisions d
-    JOIN registrations_divisions rd ON d.id = rd.division_id
-    WHERE rd.registration_id = $1
-  `,
-    [registration_id]
-  );
-  return result.rows;
+export const getDivisionsForRegistration = async (registrationId, client = pool) => {
+  const useClient = client !== pool ? client : await pool.connect();
+  try {
+    const result = await useClient.query(
+      `
+      SELECT d.*
+      FROM divisions d
+      JOIN registrations_divisions rd ON d.id = rd.division_id
+      WHERE rd.registration_id = $1
+      `,
+      [registrationId]
+    );
+    return result.rows;
+  } finally {
+    if (client === pool) useClient.release();
+  }
 };
 
-export const removeRegistrationDivision = async (registration_id, division_id) => {
+export const removeRegistrationDivision = async (registrationId, divisionId) => {
   const result = await pool.query(
     'DELETE FROM registrations_divisions WHERE registration_id = $1 AND division_id = $2 RETURNING *',
-    [registration_id, division_id]
+    [registrationId, divisionId]
   );
-  return result.rows[0];
+  return result.rows[0] || null;
 };

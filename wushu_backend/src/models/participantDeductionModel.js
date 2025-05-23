@@ -2,7 +2,10 @@ import pool from "./db.js";
 
 export const addParticipantDeduction = async (participant_id, deduction_id, judge, division_id) => {
   const result = await pool.query(
-    "INSERT INTO participant_deductions (participant_id, deduction_id, judge, division_id) VALUES ($1, $2, $3, $4) RETURNING *",
+    `INSERT INTO participant_deductions (participant_id, deduction_id, judge, division_id) 
+     VALUES ($1, $2, $3, $4) 
+     RETURNING *, 
+             (SELECT deduction_code FROM deductions WHERE deduction_id = $2) AS deduction_code`,
     [participant_id, deduction_id, judge, division_id]
   );
   return result.rows[0];
@@ -11,7 +14,7 @@ export const addParticipantDeduction = async (participant_id, deduction_id, judg
 export const getDeductionsForParticipant = async (participant_id, judge, division_id) => {
   const result = await pool.query(
     `SELECT pd.id AS participant_deduction_id, d.deduction_category, d.deduction_criteria, 
-            d.deduction_description, d.deduction_value, d.deduction_id
+            d.deduction_description, d.deduction_value, d.deduction_id, d.deduction_code
      FROM participant_deductions pd
      JOIN deductions d ON pd.deduction_id = d.deduction_id
      WHERE pd.participant_id = $1 AND pd.judge = $2 AND pd.division_id = $3

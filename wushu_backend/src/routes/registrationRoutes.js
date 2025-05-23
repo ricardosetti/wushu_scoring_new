@@ -9,6 +9,7 @@ import {
   fetchDivisionsForRegistration,
   removeDivisionFromRegistration,
   validateRegistrationToken,
+  updateRegistration,
 } from '../controllers/registrationController.js';
 
 const router = express.Router();
@@ -33,10 +34,18 @@ const checkRegistrationAccess = (req, res, next) => {
     // For GET /registrations/:registration_id/divisions
     if (req.method === 'GET' && req.url.match(/^\/[0-9]+\/divisions$/)) {
       const registrationId = parseInt(req.url.split('/')[1], 10);
-      if (registrationId === req.user.userId) { // Use userId from token
+      if (registrationId === req.user.userId) {
         return next();
       }
       return res.status(403).json({ error: 'Forbidden: You can only access your own data' });
+    }
+    // For PUT /registrations/:id
+    if (req.method === 'PUT' && req.url.match(/^\/[0-9]+$/)) {
+      const registrationId = parseInt(req.url.split('/')[1], 10);
+      if (registrationId === req.user.userId) {
+        return next();
+      }
+      return res.status(403).json({ error: 'Forbidden: You can only update your own data' });
     }
   }
 
@@ -59,6 +68,7 @@ router.get('/register/validate-token', (req, res) => {
 router.get('/', checkRegistrationAccess, fetchAllRegistrations);
 router.get('/email/:email', checkRegistrationAccess, fetchRegistrationByEmail);
 router.get('/:id', checkRegistrationAccess, fetchRegistrationById);
+router.put('/:id', checkRegistrationAccess, updateRegistration);
 router.put('/:id/status', checkRegistrationAccess, updateRegistrationStatusController);
 
 // Divisions Associated with a Registration
