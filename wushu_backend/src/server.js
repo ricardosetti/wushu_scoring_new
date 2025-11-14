@@ -104,6 +104,7 @@ app.use('/deductions', authenticateToken, deductionRoutes);
 app.use('/participant-deductions', authenticateToken, participantDeductionRoutes);
 app.use('/published-scores', authenticateToken, publishedScoresRoutes);
 app.use('/schools', authenticateToken, schoolRoutes);
+app.use('/tournaments', authenticateToken, tournamentRoutes); // Added authentication middleware
 
 // Protected Registration Routes
 app.use('/registrations', (req, res, next) => {
@@ -114,8 +115,6 @@ app.use('/registrations', (req, res, next) => {
   // Require authentication for all other routes
   authenticateToken(req, res, next);
 }, registrationRoutes);
-
-app.use('/tournaments', tournamentRoutes);
 
 // Socket.IO Events
 io.on('connection', (socket) => {

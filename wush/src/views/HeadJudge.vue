@@ -25,6 +25,27 @@
         </button>
       </div>
 
+      <!-- Timer Section -->
+      <div class="bg-gray-50 p-4 rounded-lg shadow-inner">
+        <h3 class="text-lg font-semibold text-primary mb-3">Timer</h3>
+        <div class="text-center text-4xl font-mono text-gray-800 mb-4">{{ formattedTime }}</div>
+        <div class="flex justify-center space-x-4">
+          <button
+            @click="toggleTimer"
+            class="px-6 py-2 rounded-lg text-white transition"
+            :class="isTimerRunning ? 'bg-red-500 hover:bg-red-600' : 'bg-accent hover:bg-green-700'"
+          >
+            {{ isTimerRunning ? 'Stop' : 'Start' }}
+          </button>
+          <button
+            @click="resetTimer"
+            class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
       <!-- Start Division Modal -->
       <div
         v-if="showStartDivisionModal"
@@ -160,6 +181,47 @@ import { useRouter } from 'vue-router';
 
 const socket = inject("socket");
 const router = useRouter();
+
+// Timer State
+const elapsedTime = ref(0); // Time in seconds
+const isTimerRunning = ref(false);
+let timerInterval = null;
+
+// Timer Computed Property for Formatting
+const formattedTime = computed(() => {
+  const minutes = Math.floor(elapsedTime.value / 60);
+  const seconds = elapsedTime.value % 60;
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+});
+
+// Timer Methods
+const toggleTimer = () => {
+  if (isTimerRunning.value) {
+    // Stop the timer
+    clearInterval(timerInterval);
+    timerInterval = null;
+    isTimerRunning.value = false;
+  } else {
+    // Start the timer
+    timerInterval = setInterval(() => {
+      elapsedTime.value += 1;
+    }, 1000);
+    isTimerRunning.value = true;
+  }
+};
+
+const resetTimer = () => {
+  // Stop the timer if it's running
+  if (isTimerRunning.value) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    isTimerRunning.value = false;
+  }
+  // Reset the elapsed time
+  elapsedTime.value = 0;
+};
+
+// Head Judge State
 const participants = ref([]);
 const filteredParticipants = computed(() => {
   if (!activeDivision.value) return [];
@@ -498,6 +560,10 @@ onMounted(() => {
 onUnmounted(() => {
   if (pollingInterval.value) {
     clearInterval(pollingInterval.value);
+  }
+  // Clean up timer interval
+  if (timerInterval) {
+    clearInterval(timerInterval);
   }
   socket.off("judgeSubmitted");
   socket.off("tournamentDetailsUpdated");

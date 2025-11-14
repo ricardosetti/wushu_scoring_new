@@ -10,7 +10,6 @@
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
-SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
@@ -34,7 +33,6 @@ ALTER DATABASE wushu OWNER TO wushu;
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
-SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
@@ -52,7 +50,7 @@ SET default_table_access_method = heap;
 -- Name: deductions; Type: TABLE; Schema: public; Owner: wushu
 --
 
-CREATE TABLE public.deductions (
+CREATE TABLE deductions (
     deduction_id integer NOT NULL,
     deduction_category text NOT NULL,
     deduction_criteria text NOT NULL,
@@ -105,7 +103,7 @@ CREATE TABLE public.divisions (
 );
 
 
-ALTER TABLE public.divisions OWNER TO postgres;
+ALTER TABLE public.divisions OWNER TO wushu;
 
 --
 -- TOC entry 230 (class 1259 OID 16499)
@@ -121,7 +119,7 @@ CREATE SEQUENCE public.divisions_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.divisions_id_seq OWNER TO postgres;
+ALTER SEQUENCE public.divisions_id_seq OWNER TO wushu;
 
 --
 -- TOC entry 4973 (class 0 OID 0)
@@ -293,7 +291,7 @@ CREATE TABLE public.schools (
 );
 
 
-ALTER TABLE public.schools OWNER TO postgres;
+ALTER TABLE public.schools OWNER TO wushu;
 
 --
 -- TOC entry 228 (class 1259 OID 16434)
@@ -309,7 +307,7 @@ CREATE SEQUENCE public.schools_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.schools_id_seq OWNER TO postgres;
+ALTER SEQUENCE public.schools_id_seq OWNER TO wushu;
 
 --
 -- TOC entry 4978 (class 0 OID 0)
@@ -390,7 +388,7 @@ CREATE TABLE public.tournament_participants (
 );
 
 
-ALTER TABLE public.tournament_participants OWNER TO postgres;
+ALTER TABLE public.tournament_participants OWNER TO wushu;
 
 --
 -- TOC entry 234 (class 1259 OID 24646)
@@ -406,7 +404,7 @@ CREATE TABLE public.users (
 );
 
 
-ALTER TABLE public.users OWNER TO postgres;
+ALTER TABLE public.users OWNER TO wushu;
 
 --
 -- TOC entry 233 (class 1259 OID 24645)
@@ -422,7 +420,7 @@ CREATE SEQUENCE public.users_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.users_id_seq OWNER TO postgres;
+ALTER SEQUENCE public.users_id_seq OWNER TO wushu;
 
 --
 -- TOC entry 4980 (class 0 OID 0)
@@ -1159,7 +1157,7 @@ ALTER TABLE ONLY public.tournament_participants
 -- Name: TABLE participants; Type: ACL; Schema: public; Owner: wushu
 --
 
-GRANT ALL ON TABLE public.participants TO postgres;
+
 
 
 -- Completed on 2025-04-25 21:03:09

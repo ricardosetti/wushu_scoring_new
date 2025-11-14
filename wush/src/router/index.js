@@ -10,8 +10,9 @@ import Admin from '../views/Admin.vue';
 import SchoolManagement from '../views/SchoolManagement.vue';
 import ParticipantManagement from '../views/ParticipantManagement.vue';
 import DivisionManagement from '../views/DivisionManagement.vue';
+import TournamentManagement from '../views/TournamentManagement.vue'; // Added import
 import Login from '../views/Login.vue';
-import ParticipantLogin from '../views/ParticipantLogin.vue'; // New component
+import ParticipantLogin from '../views/ParticipantLogin.vue';
 import Register from '../views/Register.vue';
 import Profile from '../views/Profile.vue';
 
@@ -27,6 +28,7 @@ const routes = [
   { path: '/admin/schools', component: SchoolManagement, meta: { requiresAuth: true, roles: ['admin'] } },
   { path: '/admin/participants', component: ParticipantManagement, meta: { requiresAuth: true, roles: ['admin'] } },
   { path: '/admin/divisions', component: DivisionManagement, meta: { requiresAuth: true, roles: ['admin'] } },
+  { path: '/admin/tournaments', component: TournamentManagement, meta: { requiresAuth: true, roles: ['admin'] } }, // Added route
   { path: '/login', name: 'Login', component: Login, meta: { requiresGuest: true } },
   { path: '/participant-login', name: 'ParticipantLogin', component: ParticipantLogin, meta: { requiresGuest: true } },
   { path: '/register', name: 'Register', component: Register, meta: { requiresGuest: true } },

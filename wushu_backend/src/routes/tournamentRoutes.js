@@ -1,17 +1,21 @@
 import express from "express";
 import {
-  createTournament,
   fetchTournaments,
+  createTournament,
   fetchTournamentById,
-  updateTournamentController
-} from "../controllers/tournamentController.js";
+  updateTournamentController,
+  deleteTournamentController,
+} from "../controllers/tournamentsController.js";
 
 const router = express.Router();
 
-// Tournament management
+// Exact matches first
 router.get("/", fetchTournaments);
 router.post("/", createTournament);
-router.get("/:tournament_id", fetchTournamentById);
-router.put("/:tournament_id", updateTournamentController);
+
+// Parameterized routes
+router.get("/:id", fetchTournamentById);
+router.put("/:id", updateTournamentController);
+router.delete("/:id", deleteTournamentController);
 
 export default router;
