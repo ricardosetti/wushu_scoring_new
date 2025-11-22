@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const instance = axios.create({
-  baseURL: `http://${import.meta.env.VITE_SERVER_HOST}:${import.meta.env.VITE_SERVER_PORT}`,
+  baseURL: import.meta.env.VITE_API_BASE || 'http://localhost:5000',
 });
 
 instance.interceptors.request.use(
@@ -20,11 +20,9 @@ instance.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       console.log('Credentials expired, redirecting to login...');
-      // Clear token and role
       localStorage.removeItem('token');
       localStorage.removeItem('role');
-      // Redirect to login
-      window.location.href = '/login'; // Use window.location.href since useRouter isn't available here
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

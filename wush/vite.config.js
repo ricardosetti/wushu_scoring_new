@@ -8,17 +8,10 @@ export default defineConfig({
   plugins: [vue(), vueDevTools()],
   css: {
     postcss: {
-      plugins: [
-        tailwindcss,
-        autoprefixer,
-      ],
+      plugins: [tailwindcss, autoprefixer],
     },
   },
-  define: {
-    'process.env.VITE_SERVER_HOST': JSON.stringify(process.env.VITE_SERVER_HOST || 'localhost'),
-    'process.env.VITE_SERVER_PORT': JSON.stringify(process.env.VITE_SERVER_PORT || '5000'),
-  },
-  base: '/',
+  base: '/', // dev: '/', prod: we'll override with --base=/scoring/
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

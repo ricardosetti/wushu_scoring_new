@@ -30,298 +30,279 @@ Before setting up the project, ensure you have the following installed:
 - **Git** (for cloning the repository)
 - **pm2** (for production deployment on Raspberry Pi)
 
-## Project Structure
-```
+
+# Wushu Scoring System – Full Dev & Prod Setup
+
+This project contains a complete Node.js + PostgreSQL backend and a Vite + Vue frontend
+for managing Wushu tournament scoring.  
+This document explains **how to run the system in development**, and **how to deploy to production** using:
+
+- Ubuntu on DigitalOcean
+- Nginx reverse proxy
+- PM2 process manager
+- Let’s Encrypt SSL
+- Domain routing for:
+
+  - https://wushutournaments.com (marketing site)
+  - https://wushutournaments.com/scoring (scoring system)
+  - https://scoring.wushutournaments.com → redirects to `/scoring`
+
+---
+
+# 📁 Project Structure
+
 wushu-scoring/
-├── wushu_backend/         # Backend (Node.js/Express)
-│   ├── src/
-│   │   ├── controllers/
-│   │   ├── models/
-│   │   ├── routes/
-│   │   ├── index.js
-│   │   └── ...
-│   ├── package.json
-│   └── ...
-├── wush/                  # Frontend (Vue.js)
-│   ├── src/
-│   │   ├── views/
-│   │   ├── router/
-│   │   ├── assets/
-│   │   ├── main.js
-│   │   └── ...
-│   ├── package.json
-│   ├── tailwind.config.js
-│   └── ...
-├── db.sql                 # Database schema
-└── README.md
-```
+│
+├── wushu-backend/ # Node + Express + Socket.IO + PostgreSQL
+│ ├── src/
+│ │ ├── server.js
+│ │ ├── routes/
+│ │ ├── controllers/
+│ │ └── ...
+│ ├── package.json
+│ └── .env
+│
+└── wush/ # Frontend (Vue + Vite)
+├── src/
+├── index.html
+├── vite.config.js
+├── .env
+├── .env.production
+└── package.json
 
-## Setup Instructions
+---
 
-### 1. Development Environment
-Follow these steps to set up the project for development on your local machine.
+# 🧪 DEVELOPMENT SETUP (LOCAL)
 
-#### Clone the Repository
-```bash
-git clone <your-repository-url>
-cd wushu-scoring
-```
+## 1. Backend: `.env` file (dev)
 
-#### Set Up the Database
-1. Ensure PostgreSQL is running on your machine.
-2. Create a database for the project:
-   ```bash
-   psql -U postgres
-   CREATE DATABASE wushu_scoring;
-   \q
-   ```
-3. Import the database schema:
-   ```bash
-   psql -U postgres -d wushu_scoring -f db.sql
-   ```
-4. Verify the tables (`schools`, `participants`, `divisions`, `scores`, `published_scores`, etc.) are created:
-   ```bash
-   psql -U postgres -d wushu_scoring -c "\dt"
-   ```
+Located at: `wushu-backend/.env`
+PGUSER=wushu
+PGHOST=localhost
+PGDATABASE=wushu
+PGPASSWORD=yourpassword
+PGPORT=5432
 
-#### Set Up the Backend
-1. Navigate to the backend directory:
-   ```bash
-   cd wushu_backend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Create a `.env` file in `wushu_backend/` with the following:
-   ```
-   PORT=5000
-   DATABASE_URL=postgres://postgres:your_password@localhost:5432/wushu_scoring
-   JWT_SECRET=your_jwt_secret
-   ```
-   Replace `your_password` with your PostgreSQL password and `your_jwt_secret` with a secure secret for JWT token generation.
-4. Start the backend in development mode:
-   ```bash
-   npm run dev
-   ```
-   The backend should be running on `http://localhost:5000`.
+PORT=5000
+FRONTEND_ORIGIN=http://localhost:5173
 
-#### Set Up the Frontend
-1. Navigate to the frontend directory:
-   ```bash
-   cd ../wush
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Create a `.env` file in `wush/` with the following:
-   ```
-   VITE_SERVER_HOST=localhost
-   VITE_SERVER_PORT=5000
-   VITE_CLIENT_HOST=localhost
-   VITE_CLIENT_PORT=5173
-   ```
-4. Start the frontend in development mode:
-   ```bash
-   npm run dev
-   ```
-   The frontend should be running on `http://localhost:5173`.
+JWT_SECRET=your_secret
+REGISTRATION_BASE_URL=http://localhost:5173/register
 
-#### Access the Application
-- **Head Judge Panel**: `http://localhost:5173/head-judge` (requires `head_judge` role)
-- **Scoreboard**: `http://localhost:5173/scoreboard` (public)
-- **Leaderboard**: `http://localhost:5173/leaderboard` (public)
-- **Admin Pages** (require `admin` role):
-  - Schools: `http://localhost:5173/admin/schools`
-  - Participants: `http://localhost:5173/admin/participants`
-  - Divisions: `http://localhost:5173/admin/divisions`
-- **Judge Panels**:
-  - Judge A1: `http://localhost:5173/judge-a1` (requires `judge_a` role, username `judgea1`)
-  - Judge A2: `http://localhost:5173/judge-a2` (requires `judge_a` role, username `judgea2`)
-  - Judge B1: `http://localhost:5173/judge-b1` (requires `judge_b` role, username `judgeb1`)
-  - Judge B2: `http://localhost:5173/judge-b2` (requires `judge_b` role, username `judgeb2`)
-- **Login**: `http://localhost:5173/login`
+## 2. Run backend (dev)
 
-### 2. Production Environment (Raspberry Pi)
-Follow these steps to deploy the application on a Raspberry Pi for production.
+cd wushu-backend
+npm install
+node src/server.js
 
-#### Prepare the Raspberry Pi
-1. Update the system:
-   ```bash
-   sudo apt update && sudo apt upgrade -y
-   ```
-2. Install Node.js and npm (if not already installed):
-   ```bash
-   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-   sudo apt install -y nodejs
-   node -v  # Should show v20.x
-   npm -v   # Should show v10.x or later
-   ```
-3. Install PostgreSQL:
-   ```bash
-   sudo apt install -y postgresql postgresql-contrib
-   sudo systemctl start postgresql
-   sudo systemctl enable postgresql
-   ```
-4. Install `pm2` for process management:
-   ```bash
-   sudo npm install -g pm2
-   ```
+Backend runs at:
+http://localhost:5000
 
-#### Set Up the Database
-1. Create a PostgreSQL user and database:
-   ```bash
-   sudo -u postgres psql
-   CREATE USER wushu WITH PASSWORD 'your_secure_password';
-   CREATE DATABASE wushu_scoring OWNER wushu;
-   \q
-   ```
-2. Copy `db.sql` to the Raspberry Pi (e.g., via SCP):
-   ```bash
-   scp db.sql pi@192.168.1.16:/home/pi/
-   ```
-   Replace `192.168.1.16` with your Raspberry Pi’s IP address.
-3. Import the database schema:
-   ```bash
-   psql -U wushu -d wushu_scoring -f /home/pi/db.sql
-   ```
-4. Verify the tables:
-   ```bash
-   psql -U wushu -d wushu_scoring -c "\dt"
-   ```
+Socket.IO also connects here.
 
-#### Deploy the Backend
-1. Copy the backend files to the Raspberry Pi:
-   ```bash
-   scp -r wushu_backend pi@192.168.1.16:/var/www/wushu_scoring/
-   ```
-2. SSH into the Raspberry Pi:
-   ```bash
-   ssh pi@192.168.1.16
-   ```
-3. Install backend dependencies:
-   ```bash
-   cd /var/www/wushu_scoring/wushu_backend
-   npm install
-   ```
-4. Create a `.env` file in `/var/www/wushu_scoring/wushu_backend/`:
-   ```
-   PORT=5000
-   DATABASE_URL=postgres://wushu:your_secure_password@localhost:5432/wushu_scoring
-   JWT_SECRET=your_jwt_secret
-   ```
-   Replace `your_secure_password` with the password set earlier and `your_jwt_secret` with a secure secret.
-5. Start the backend with `pm2`:
-   ```bash
-   pm2 start npm --name "wushu_backend" -- start
-   pm2 save
-   pm2 startup
-   ```
-   Follow the output instructions to ensure `pm2` starts on boot.
+---
 
-#### Deploy the Frontend
-1. Build the frontend on your local machine:
-   ```bash
-   cd wushu_scoring/wush
-   npm run build
-   ```
-   This generates a `dist/` folder with the production-ready files.
-2. Copy the built files to the Raspberry Pi:
-   ```bash
-   scp -r dist/* pi@192.168.1.16:/var/www/wushu_scoring/frontend/
-   ```
-3. Install a web server (e.g., Nginx) on the Raspberry Pi:
-   ```bash
-   sudo apt install -y nginx
-   ```
-4. Configure Nginx to serve the frontend:
-   - Create a configuration file:
-     ```bash
-     sudo nano /etc/nginx/sites-available/wushu_scoring
-     ```
-   - Add the following configuration:
-     ```
-     server {
-         listen 80;
-         server_name 192.168.1.16;
+## 3. Frontend: `.env` (dev)
 
-         location / {
-             root /var/www/wushu_scoring/frontend;
-             index index.html;
-             try_files $uri $uri/ /index.html;
-         }
+Located at: `wush/.env`
 
-         location /api/ {
-             proxy_pass http://localhost:5000/;
-             proxy_set_header Host $host;
-             proxy_set_header X-Real-IP $remote_addr;
-             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-             proxy_set_header X-Forwarded-Proto $scheme;
-         }
+VITE_API_BASE=http://localhost:5000
+VITE_SOCKET_URL=http://localhost:5000
 
-         location /socket.io/ {
-             proxy_pass http://localhost:5000/socket.io/;
-             proxy_http_version 1.1;
-             proxy_set_header Upgrade $http_upgrade;
-             proxy_set_header Connection "upgrade";
-             proxy_set_header Host $host;
-         }
-     }
-     ```
-   - Enable the configuration:
-     ```bash
-     sudo ln -s /etc/nginx/sites-available/wushu_scoring /etc/nginx/sites-enabled/
-     sudo nginx -t  # Test configuration
-     sudo systemctl restart nginx
-     ```
+## 4. Run frontend (dev)
 
-#### Access the Application
-- Access the application at `http://192.168.1.16` (replace with your Raspberry Pi’s IP).
-- Ensure the backend is running (`pm2 logs wushu_backend`).
+cd wush
+npm install
+npm run dev
 
-## Usage
-1. **Admin Setup**:
-   - Log in with an admin account (e.g., username: `admin`, password: set in `db.sql`).
-   - Add schools, participants, and divisions via the admin pages.
-   - Assign participants to divisions.
-2. **Head Judge**:
-   - Log in with the head judge account (e.g., username: `headjudge`, password: set in `db.sql`).
-   - Start a division from the Head Judge panel.
-   - Select an active participant and turn on scoring for judges.
-   - Calculate and publish final scores.
-3. **Judges**:
-   - Log in with a judge account (e.g., `judgea1`, `judgea2`, `judgeb1`, `judgeb2`).
-   - Submit scores for the active participant in the active division.
-4. **Scoreboard**:
-   - View the active participant’s scores for the active division (publicly accessible).
-5. **Leaderboard**:
-   - View ranked participants for the active division, sorted by final score (publicly accessible).
+Frontend runs at:
+http://localhost:5173
 
-## Troubleshooting
-- **Backend Not Starting**:
-  - Check `pm2 logs wushu_backend` for errors.
-  - Ensure `DATABASE_URL` and `JWT_SECRET` in `.env` are correct.
-- **Frontend Not Loading**:
-  - Verify Nginx is running (`sudo systemctl status nginx`).
-  - Check Nginx logs (`sudo tail -f /var/log/nginx/error.log`).
-- **Scores Not Showing**:
-  - Ensure an active division is set via the Head Judge panel.
-  - Verify scores are published for the active division.
-- **Real-Time Updates Not Working**:
-  - Confirm Socket.IO connection (`http://<your-ip>:5000/socket.io`).
-- **Redirected to Login on Public Routes**:
-  - Ensure the backend API endpoints for `/divisions/active`, `/tournament-details`, `/participants`, `/participants/:id`, and `/published-scores/participant/:id` are public (not protected by `authenticateToken` middleware).
-- **Token Expiration Issues**:
-  - If you see "Credentials expired" in the console but are not redirected to `/login`, verify that the response interceptor in `axios.js` is correctly set up.
+Dev environment supports:
 
-## Contributing
-To contribute to this project:
-1. Fork the repository.
-2. Create a feature branch (`git checkout -b feature/YourFeature`).
-3. Commit your changes (`git commit -m "Add YourFeature"`).
-4. Push to the branch (`git push origin feature/YourFeature`).
-5. Open a pull request.
+- Full API communication
+- Socket.IO updates
+- Authentication
+- All real-time scoring updates
+
+---
+
+# 🚀 PRODUCTION DEPLOYMENT
+
+## 1. Create directories on the server
+sudo mkdir -p /var/www/wushutournaments.com
+sudo mkdir -p /var/www/wushutournaments.com/scoring
+sudo chown -R $USER:$USER /var/www/wushutournaments.com
+
+Your static marketing site goes under:
+/var/www/wushutournaments.com
+
+Your scoring SPA goes under:
+/var/www/wushutournaments.com/scoring
+
+---
+
+# 🖥️ BACKEND DEPLOYMENT
+
+Copy backend to server:
+scp -r wushu-backend user@yourserver:/home/user/
+
+Install deps:
+cd wushu-backend
+npm install
+
+## Backend production `.env`
+PGUSER=wushu
+PGHOST=localhost
+PGDATABASE=wushu
+PGPASSWORD=yourpassword
+PGPORT=5432
+
+PORT=5000
+FRONTEND_ORIGIN=https://wushutournaments.com
+
+JWT_SECRET=your_secret
+REGISTRATION_BASE_URL=https://wushutournaments.com/scoring/register
+
+## Start backend with PM2
+pm2 start src/server.js --name wushu-backend
+pm2 save
+pm2 startup
+
+---
+
+# 🎨 FRONTEND (PROD BUILD)
+
+## Frontend `.env.production`
+
+Located at: `wush/.env.production`
+VITE_API_BASE=/scoring/api
+VITE_SOCKET_URL=/socket.io
+
+## Build with scoring base path
+cd wush
+npm run build -- --base=/scoring/
+
+Copy dist to server:
+cp -r dist/* /var/www/wushutournaments.com/scoring/
+
+
+---
+
+# 🌐 NGINX CONFIG (FINAL VERSION)
+
+**Location:** `/etc/nginx/sites-available/wushutournaments.com`
+
+```nginx
+########################
+# Main HTTPS server (wushutournaments.com)
+########################
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name wushutournaments.com www.wushutournaments.com;
+
+    root /var/www/wushutournaments.com;
+    index index.html;
+
+    ssl_certificate /etc/letsencrypt/live/wushutournaments.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/wushutournaments.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # Frontend scoring app
+    location /scoring/ {
+        try_files $uri $uri/ /scoring/index.html;
+    }
+
+    # Marketing site
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # API proxy
+    location /scoring/api/ {
+        proxy_pass http://localhost:5000/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # Socket.IO WebSockets
+    location /socket.io/ {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+
+########################
+# scoring.wushutournaments.com redirects to main domain
+########################
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name scoring.wushutournaments.com;
+
+    ssl_certificate /etc/letsencrypt/live/wushutournaments.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/wushutournaments.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    return 301 https://wushutournaments.com/scoring$request_uri;
+}
+
+########################
+# HTTP → HTTPS redirects
+########################
+server {
+    listen 80;
+    listen [::]:80;
+    server_name wushutournaments.com www.wushutournaments.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name scoring.wushutournaments.com;
+    return 301 https://wushutournaments.com/scoring$request_uri;
+}
+
+Test & reload:
+sudo nginx -t
+sudo systemctl reload nginx
+
+🔐 SSL Certificates (Let’s Encrypt)
+To set up SSL:
+sudo certbot --nginx -d wushutournaments.com -d www.wushutournaments.com -d scoring.wushutournaments.com
+Certbot auto-renews.
+
+Test renewal:
+sudo certbot renew --dry-run
+
+🔧 TROUBLESHOOTING
+Blank screen
+- Vite build was created without --base=/scoring/
+- Missing index.html under /var/www/wushutournaments.com/scoring/
+
+API 405 or 404
+- Axios must use /scoring/api
+- Backend must listen on port 5000
+- Nginx must proxy /scoring/api → localhost:5000
+
+Socket.IO not connecting
+- Ensure /socket.io/ proxy exists in BOTH HTTPS blocks
+- Frontend PRODUCTION must not use any localhost references
+- Backend CORS origin must match: https://wushutournaments.com
+
 
 ## License
 This project is licensed under the MIT License.
