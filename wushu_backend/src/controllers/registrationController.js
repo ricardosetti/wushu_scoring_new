@@ -14,6 +14,7 @@ import {
   removeRegistrationDivision,
 } from '../models/registrationDivisionsModel.js';
 
+// --- Validation Helpers ---
 const validateRegistrationData = (data) => {
   const requiredFields = ['first_name', 'last_name', 'birthdate', 'gender', 'school_id', 'email'];
   for (const field of requiredFields) {
@@ -40,6 +41,8 @@ const validateUpdateData = (data) => {
   return null;
 };
 
+// --- Controllers ---
+
 export const createRegistration = async (req, res) => {
   try {
     const validationError = validateRegistrationData(req.body);
@@ -47,7 +50,7 @@ export const createRegistration = async (req, res) => {
       return res.status(400).json({ error: validationError });
     }
 
-    const { password, divisions, ...registrationData } = req.body;
+    const { password, divisions, tournament_id, ...registrationData } = req.body;
 
     // Hash the password
     const saltRounds = 10;
@@ -61,10 +64,12 @@ export const createRegistration = async (req, res) => {
       await client.query('BEGIN'); // Start transaction
 
       // Create the registration
+      // We pass the client so it participates in the transaction
       const registration = await addRegistration(
         {
           ...registrationData,
           password_hash: passwordHash,
+          tournament_id: tournament_id || 1, // Default to legacy tournament if not provided
         },
         client
       );
@@ -90,8 +95,7 @@ export const createRegistration = async (req, res) => {
     }
   } catch (err) {
     console.error('Registration error:', err.message);
-    console.error('Stack trace:', err.stack);
-    if (err.message.includes('duplicate key value violates unique constraint "registrations_email_key"')) {
+    if (err.message.includes('unique constraint') || err.message.includes('registrations_email_key')) {
       return res.status(409).json({ error: 'Email already exists' });
     }
     res.status(500).json({ error: 'Failed to create registration: ' + err.message });
@@ -125,7 +129,6 @@ export const updateRegistration = async (req, res) => {
   } = req.body;
 
   try {
-    // Validate required fields
     const validationError = validateUpdateData({
       first_name,
       last_name,
@@ -139,22 +142,19 @@ export const updateRegistration = async (req, res) => {
       return res.status(400).json({ error: validationError });
     }
 
-    // Validate gender
     if (gender && !['M', 'F', 'O'].includes(gender)) {
       return res.status(400).json({ error: 'Invalid gender value. Must be M, F, or O.' });
     }
 
     const client = await pool.connect();
     try {
-      await client.query('BEGIN'); // Start transaction
+      await client.query('BEGIN');
 
-      // Check if the registration exists
       const existingRegistration = await client.query('SELECT * FROM registrations WHERE id = $1', [id]);
       if (existingRegistration.rows.length === 0) {
         throw new Error('Registration not found');
       }
 
-      // If email is updated, check for uniqueness
       if (email !== existingRegistration.rows[0].email) {
         const emailCheck = await client.query('SELECT id FROM registrations WHERE email = $1 AND id != $2', [email, id]);
         if (emailCheck.rows.length > 0) {
@@ -162,80 +162,40 @@ export const updateRegistration = async (req, res) => {
         }
       }
 
-      // Hash the password if provided
       let passwordHash = existingRegistration.rows[0].password_hash;
       if (password) {
         const saltRounds = 10;
         passwordHash = await bcrypt.hash(password, saltRounds);
-        if (!passwordHash) {
-          throw new Error('Failed to hash password');
-        }
       }
 
-      // Update the registration
       const updateQuery = `
         UPDATE registrations
         SET
-          first_name = $1,
-          middle_name = $2,
-          last_name = $3,
-          birthdate = $4,
-          height_feet = $5,
-          height_inches = $6,
-          weight = $7,
-          gender = $8,
-          phone = $9,
-          emergency_contact_name = $10,
-          emergency_contact_phone = $11,
-          street = $12,
-          city = $13,
-          state = $14,
-          country = $15,
-          zip_code = $16,
-          participant_rank = $17,
-          email = $18,
-          password_hash = $19,
-          school_id = $20,
+          first_name = $1, middle_name = $2, last_name = $3, birthdate = $4,
+          height_feet = $5, height_inches = $6, weight = $7, gender = $8,
+          phone = $9, emergency_contact_name = $10, emergency_contact_phone = $11,
+          street = $12, city = $13, state = $14, country = $15, zip_code = $16,
+          participant_rank = $17, email = $18, password_hash = $19, school_id = $20,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = $21
         RETURNING *;
       `;
       const updateValues = [
-        first_name,
-        middle_name || null,
-        last_name,
-        birthdate,
-        height_feet || null,
-        height_inches || null,
-        weight || null,
-        gender,
-        phone || null,
-        emergency_contact_name || null,
-        emergency_contact_phone || null,
-        street || null,
-        city || null,
-        state || null,
-        country || null,
-        zip_code || null,
-        participant_rank || null,
-        email,
-        passwordHash,
-        school_id,
-        id,
+        first_name, middle_name || null, last_name, birthdate,
+        height_feet || null, height_inches || null, weight || null, gender,
+        phone || null, emergency_contact_name || null, emergency_contact_phone || null,
+        street || null, city || null, state || null, country || null, zip_code || null,
+        participant_rank || null, email, passwordHash, school_id, id,
       ];
       const updatedRegistration = await client.query(updateQuery, updateValues);
 
-      // Update divisions if provided
       if (divisions && Array.isArray(divisions)) {
-        // Delete existing division associations
         await client.query('DELETE FROM registrations_divisions WHERE registration_id = $1', [id]);
-        // Add new division associations
         for (const divisionId of divisions) {
           await addRegistrationDivision(id, divisionId, client);
         }
       }
 
-      // Fetch updated divisions
       const updatedDivisions = await getDivisionsForRegistration(id, client);
 
       await client.query('COMMIT');
@@ -251,8 +211,7 @@ export const updateRegistration = async (req, res) => {
     }
   } catch (err) {
     console.error('Update registration error:', err.message);
-    console.error('Stack trace:', err.stack);
-    if (err.message.includes('duplicate key value violates unique constraint "registrations_email_key"')) {
+    if (err.message.includes('unique constraint') || err.message.includes('registrations_email_key')) {
       return res.status(409).json({ error: 'Email already exists' });
     }
     if (err.message === 'Registration not found') {

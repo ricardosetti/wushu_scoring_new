@@ -1,113 +1,170 @@
 <template>
   <div class="container mx-auto p-4">
-    <h2 class="text-xl font-bold mb-4">Tournament Management</h2>
-    <button
-      @click="openAddForm"
-      class="bg-green-500 text-white px-4 py-2 rounded mb-4 hover:bg-green-600 mr-2"
-    >
-      Add New Tournament
-    </button>
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-3xl font-bold text-gray-800">Tournament Management</h2>
+      <button
+        @click="openAddForm"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow transition font-semibold"
+      >
+        + New Tournament
+      </button>
+    </div>
 
-    <!-- Modal for Add/Edit Tournament -->
-    <div v-if="showAddForm" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-6 rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <h3 class="text-lg font-bold mb-4">{{ editTournamentId ? 'Edit Tournament' : 'Add Tournament' }}</h3>
-        <form @submit.prevent="handleSubmit">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="mb-2 col-span-2">
-              <label class="block">Tournament Title *</label>
-              <input v-model="newTournament.tournament_title" required class="border p-2 w-full rounded" />
-              <div v-if="errorMessage && !newTournament.tournament_title" class="text-red-500 text-sm mt-1">
-                Tournament title is required.
-              </div>
-            </div>
-            <div class="mb-2">
-              <label class="block">Start Date</label>
-              <input v-model="newTournament.tournament_start_date" type="date" class="border p-2 w-full rounded" />
-            </div>
-            <div class="mb-2">
-              <label class="block">End Date</label>
-              <input v-model="newTournament.tournament_end_date" type="date" class="border p-2 w-full rounded" />
-            </div>
-            <div class="mb-2">
-              <label class="block">Hours</label>
-              <input v-model="newTournament.tournament_hours" class="border p-2 w-full rounded" />
-            </div>
-            <div class="mb-2">
-              <label class="block">Contact</label>
-              <input v-model="newTournament.tournament_contact" class="border p-2 w-full rounded" />
-            </div>
-            <div class="mb-2 col-span-2">
-              <label class="block">Address</label>
-              <input v-model="newTournament.tournament_address" class="border p-2 w-full rounded" />
-            </div>
-            <div class="mb-2">
-              <label class="block">City</label>
-              <input v-model="newTournament.tournament_city" class="border p-2 w-full rounded" />
-            </div>
-            <div class="mb-2">
-              <label class="block">State</label>
-              <input v-model="newTournament.tournament_state" class="border p-2 w-full rounded" />
-            </div>
-            <div class="mb-2">
-              <label class="block">Country</label>
-              <input v-model="newTournament.tournament_country" class="border p-2 w-full rounded" />
-            </div>
-            <div class="mb-2">
-              <label class="block">Email</label>
-              <input v-model="newTournament.tournament_email" type="email" class="border p-2 w-full rounded" />
-            </div>
-          </div>
-          <div class="mt-4 flex justify-end">
-            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-              {{ editTournamentId ? 'Update' : 'Save' }}
-            </button>
-            <button @click="cancelForm" class="ml-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
-              Cancel
-            </button>
-          </div>
-          <div v-if="errorMessage" class="mt-2 text-red-500">{{ errorMessage }}</div>
-        </form>
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
+      <div v-if="tournaments.length">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+             <tr>
+              <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+              <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Tournament Details</th>
+              <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Location</th>
+              <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+             </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <tr 
+              v-for="tournament in tournaments" 
+              :key="tournament.tournament_id" 
+              :class="tournament.is_active ? 'bg-green-50' : 'hover:bg-gray-50'"
+              class="transition-colors duration-150"
+            >
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div v-if="tournament.is_active" class="flex items-center">
+                  <span class="h-3 w-3 rounded-full bg-green-500 mr-2 animate-pulse"></span>
+                  <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 border border-green-200">
+                    CURRENTLY ACTIVE
+                  </span>
+                </div>
+                <button 
+                  v-else 
+                  @click="setActiveTournament(tournament)"
+                  class="group flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 border border-gray-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition"
+                >
+                  <span class="h-2 w-2 rounded-full bg-gray-400 mr-2 group-hover:bg-blue-500"></span>
+                  Set as Active
+                </button>
+              </td>
+
+              <td class="px-6 py-4">
+                <div class="text-lg font-bold text-gray-900">{{ tournament.tournament_title }}</div>
+                <div class="text-sm text-gray-500 mt-1">
+                  📅 {{ formatDate(tournament.tournament_start_date) }} - {{ formatDate(tournament.tournament_end_date) }}
+                </div>
+              </td>
+
+              <td class="px-6 py-4 text-sm text-gray-600">
+                <div class="font-medium">{{ tournament.tournament_city || 'Online' }}</div>
+                <div class="text-xs">{{ tournament.tournament_state }}</div>
+              </td>
+
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button 
+                  @click="editTournament(tournament)" 
+                  class="text-indigo-600 hover:text-indigo-900 mr-6 font-semibold"
+                >
+                  Edit
+                </button>
+                <button 
+                  v-if="!tournament.is_active" 
+                  @click="deleteTournament(tournament.tournament_id)" 
+                  class="text-red-500 hover:text-red-700 font-semibold"
+                >
+                  Delete
+                </button>
+                <span v-else class="text-gray-300 cursor-not-allowed font-semibold" title="Cannot delete active tournament">
+                  Delete
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-else class="p-10 text-center text-gray-500 bg-gray-50">
+        <p class="text-xl font-medium">No tournaments found.</p>
+        <p class="mt-2 text-sm">Click the button above to create your first event.</p>
       </div>
     </div>
 
-    <!-- Tournament List -->
-    <div v-if="tournaments.length">
-      <h3 class="text-lg font-bold mb-2">Tournaments</h3>
-      <div v-for="tournament in tournaments" :key="tournament.tournament_id" class="border p-2 mb-2 flex justify-between items-center">
-        <span>
-          {{ tournament.tournament_title }}
-          ({{ tournament.tournament_start_date ? new Date(tournament.tournament_start_date).toLocaleDateString() : 'N/A' }} -
-          {{ tournament.tournament_end_date ? new Date(tournament.tournament_end_date).toLocaleDateString() : 'N/A' }},
-          {{ tournament.tournament_city || 'N/A' }}, {{ tournament.tournament_state || 'N/A' }})
-        </span>
-        <div>
-          <button @click="editTournament(tournament)" class="bg-yellow-500 text-white px-2 py-1 rounded mr-2 hover:bg-yellow-600">
-            Edit
-          </button>
-          <button @click="deleteTournament(tournament.tournament_id)" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">
-            Delete
-          </button>
+    <div v-if="showAddForm" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 class="text-xl font-bold text-gray-800">{{ editTournamentId ? 'Edit Tournament' : 'Create New Tournament' }}</h3>
+          <button @click="cancelForm" class="text-gray-400 hover:text-gray-600 transition text-3xl leading-none">&times;</button>
+        </div>
+        
+        <div class="p-6">
+          <form @submit.prevent="handleSubmit">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="md:col-span-2">
+                <label class="block text-sm font-bold text-gray-700 mb-1">Tournament Title *</label>
+                <input 
+                  v-model="newTournament.tournament_title" 
+                  required 
+                  class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                  placeholder="e.g. Winter Open 2025"
+                />
+              </div>
+              
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">Start Date</label>
+                <input v-model="newTournament.tournament_start_date" type="date" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+              </div>
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">End Date</label>
+                <input v-model="newTournament.tournament_end_date" type="date" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+              </div>
+
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">Email Contact</label>
+                <input v-model="newTournament.tournament_email" type="email" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+              </div>
+               <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">Phone Contact</label>
+                <input v-model="newTournament.tournament_contact" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+              </div>
+
+              <div class="md:col-span-2">
+                <label class="block text-sm font-bold text-gray-700 mb-1">Address</label>
+                <input v-model="newTournament.tournament_address" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+              </div>
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">City</label>
+                <input v-model="newTournament.tournament_city" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+              </div>
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">State</label>
+                <input v-model="newTournament.tournament_state" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+              </div>
+            </div>
+
+            <div v-if="errorMessage" class="mt-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm">
+              {{ errorMessage }}
+            </div>
+
+            <div class="mt-8 flex justify-end space-x-3 pt-6 border-t border-gray-100">
+              <button 
+                @click="cancelForm" 
+                type="button" 
+                class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                class="px-6 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium shadow-md hover:shadow-lg transition"
+              >
+                {{ editTournamentId ? 'Save Changes' : 'Create Tournament' }}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
-    <div v-else>
-      <p>No tournaments found.</p>
-    </div>
-
-    <!-- Navigation and Logout -->
-    <div class="mt-4 flex justify-between">
-      <button
-        @click="goToAdminDashboard"
-        class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-      >
-        Back to Admin Dashboard
-      </button>
-      <button
-        @click="logout"
-        class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-      >
-        Logout
+    
+    <div class="mt-8">
+      <button @click="goToAdminDashboard" class="text-gray-500 hover:text-gray-800 flex items-center font-medium transition">
+        <span class="mr-2">←</span> Back to Admin Dashboard
       </button>
     </div>
   </div>
@@ -121,6 +178,9 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 const tournaments = ref([]);
 const showAddForm = ref(false);
+const editTournamentId = ref(null);
+const errorMessage = ref('');
+
 const newTournament = ref({
   tournament_title: '',
   tournament_start_date: '',
@@ -132,104 +192,99 @@ const newTournament = ref({
   tournament_state: '',
   tournament_country: '',
   tournament_email: '',
+  is_active: false
 });
-const editTournamentId = ref(null);
-const errorMessage = ref('');
 
 const fetchTournaments = async () => {
   try {
-    console.log('Fetching tournaments...');
     const response = await axios.get('/tournaments');
-    console.log('Tournaments response:', response.data);
     tournaments.value = response.data;
   } catch (error) {
-    console.error('Error fetching tournaments:', error.response ? error.response.data : error.message);
-    tournaments.value = [];
+    console.error('Error fetching tournaments:', error);
   }
 };
 
-const handleSubmit = () => {
+const setActiveTournament = async (tournament) => {
+  if(!confirm(`Set "${tournament.tournament_title}" as the Active Tournament? This will archive all others.`)) return;
+  
+  try {
+    // We update the specific tournament to be active
+    // The backend handles setting others to inactive
+    await axios.put(`/tournaments/${tournament.tournament_id}`, {
+      ...tournament,
+      is_active: true
+    });
+    await fetchTournaments(); // Refresh list to show new status
+  } catch (error) {
+    alert('Failed to set active tournament');
+    console.error(error);
+  }
+};
+
+const handleSubmit = async () => {
   errorMessage.value = '';
   if (!newTournament.value.tournament_title) {
-    errorMessage.value = 'Tournament title is required.';
+    errorMessage.value = 'Title is required';
     return;
   }
-  console.log('Submitting form, editTournamentId:', editTournamentId.value, 'Data:', newTournament.value);
-  if (editTournamentId.value) {
-    updateTournament();
-  } else {
-    addTournament();
-  }
-};
 
-const addTournament = async () => {
-  console.log('Adding new tournament, Data:', newTournament.value);
   try {
-    const response = await axios.post('/tournaments', newTournament.value);
-    console.log('Add response:', response.data);
-    tournaments.value.push(response.data);
-    tournaments.value.sort((a, b) => {
-      const dateA = a.tournament_start_date ? new Date(a.tournament_start_date) : new Date(0);
-      const dateB = b.tournament_start_date ? new Date(b.tournament_start_date) : new Date(0);
-      return dateB - dateA || a.tournament_title.localeCompare(b.tournament_title);
-    });
-    showAddForm.value = false;
+    if (editTournamentId.value) {
+      await axios.put(`/tournaments/${editTournamentId.value}`, newTournament.value);
+    } else {
+      await axios.post('/tournaments', newTournament.value);
+    }
+    await fetchTournaments();
+    closeForm();
   } catch (error) {
-    console.error('Error adding tournament:', error.response ? error.response.data : error.message);
-    errorMessage.value = error.response?.data?.error || 'Failed to add tournament. Please try again.';
+    errorMessage.value = error.response?.data?.error || 'Failed to save tournament.';
   }
 };
 
-const editTournament = (tournament) => {
-  editTournamentId.value = tournament.tournament_id;
+const editTournament = (t) => {
+  editTournamentId.value = t.tournament_id;
   newTournament.value = {
-    tournament_title: tournament.tournament_title,
-    tournament_start_date: tournament.tournament_start_date ? tournament.tournament_start_date.split('T')[0] : '',
-    tournament_end_date: tournament.tournament_end_date ? tournament.tournament_end_date.split('T')[0] : '',
-    tournament_hours: tournament.tournament_hours || '',
-    tournament_contact: tournament.tournament_contact || '',
-    tournament_address: tournament.tournament_address || '',
-    tournament_city: tournament.tournament_city || '',
-    tournament_state: tournament.tournament_state || '',
-    tournament_country: tournament.tournament_country || '',
-    tournament_email: tournament.tournament_email || '',
+    ...t,
+    tournament_start_date: t.tournament_start_date ? t.tournament_start_date.split('T')[0] : '',
+    tournament_end_date: t.tournament_end_date ? t.tournament_end_date.split('T')[0] : '',
+    is_active: t.is_active
   };
   showAddForm.value = true;
 };
 
-const updateTournament = async () => {
-  console.log('Updating tournament with id:', editTournamentId.value, 'Data:', newTournament.value);
-  try {
-    const response = await axios.put(`/tournaments/${editTournamentId.value}`, newTournament.value);
-    console.log('Update response:', response.data);
-    const index = tournaments.value.findIndex(t => t.tournament_id === editTournamentId.value);
-    if (index !== -1) {
-      tournaments.value[index] = response.data;
+const deleteTournament = async (id) => {
+  if (confirm('Are you sure? This will delete the tournament and ALL associated registrations permanently.')) {
+    try {
+      await axios.delete(`/tournaments/${id}`);
+      fetchTournaments();
+    } catch (error) {
+      alert('Failed to delete tournament');
     }
-    tournaments.value.sort((a, b) => {
-      const dateA = a.tournament_start_date ? new Date(a.tournament_start_date) : new Date(0);
-      const dateB = b.tournament_start_date ? new Date(b.tournament_start_date) : new Date(0);
-      return dateB - dateA || a.tournament_title.localeCompare(b.tournament_title);
-    });
-    showAddForm.value = false;
-  } catch (error) {
-    console.error('Error updating tournament:', error.response ? error.response.data : error.message);
-    errorMessage.value = error.response?.data?.error || 'Failed to update tournament. Please try again.';
   }
 };
 
-const deleteTournament = async (id) => {
-  if (confirm('Are you sure you want to delete this tournament?')) {
-    try {
-      await axios.delete(`/tournaments/${id}`);
-      tournaments.value = tournaments.value.filter(t => t.tournament_id !== id);
-    } catch (error) {
-      console.error('Error deleting tournament:', error.response ? error.response.data : error.message);
-    }
-  }
+const formatDate = (dateStr) => {
+  if (!dateStr) return 'TBD';
+  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const openAddForm = () => {
+  resetForm();
+  showAddForm.value = true;
+};
+
+const cancelForm = () => {
+  closeForm();
+};
+
+const closeForm = () => {
+  showAddForm.value = false;
+  resetForm();
 };
 
 const resetForm = () => {
+  editTournamentId.value = null;
+  errorMessage.value = '';
   newTournament.value = {
     tournament_title: '',
     tournament_start_date: '',
@@ -241,52 +296,11 @@ const resetForm = () => {
     tournament_state: '',
     tournament_country: '',
     tournament_email: '',
+    is_active: false
   };
-  editTournamentId.value = null;
-  errorMessage.value = '';
 };
 
-const openAddForm = () => {
-  showAddForm.value = true;
-  resetForm();
-};
+const goToAdminDashboard = () => router.push('/admin');
 
-const cancelForm = () => {
-  showAddForm.value = false;
-  resetForm();
-};
-
-const goToAdminDashboard = () => {
-  router.push('/admin');
-};
-
-const logout = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('role');
-  router.push('/login');
-};
-
-onMounted(() => {
-  fetchTournaments();
-});
+onMounted(fetchTournaments);
 </script>
-
-<style scoped>
-.max-h-90vh {
-  max-height: 90vh;
-}
-.overflow-y-auto::-webkit-scrollbar {
-  width: 8px;
-}
-.overflow-y-auto::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-}
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
-}
-.overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-</style>

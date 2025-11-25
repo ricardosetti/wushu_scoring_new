@@ -50,8 +50,9 @@ export const addTournament = async (
         tournament_city,
         tournament_state,
         tournament_country,
-        tournament_email
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        tournament_email,
+        is_active
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false)
       RETURNING *
     `, [
       tournament_title,
@@ -82,24 +83,31 @@ export const updateTournament = async (
   tournament_city,
   tournament_state,
   tournament_country,
-  tournament_email
+  tournament_email,
+  is_active
 ) => {
+  const client = await pool.connect();
   try {
-    const result = await pool.query(`
+    await client.query('BEGIN');
+
+    // If we are setting this tournament to active:
+    if (is_active) {
+       // 1. Archive all other tournaments
+       await client.query("UPDATE tournaments SET is_active = false WHERE tournament_id != $1", [id]);
+       
+       // 2. CRITICAL FIX: Clear the "Active Participant" from the scoreboard
+       // This ensures the scoreboard doesn't show a student from the previous tournament
+       await client.query("UPDATE tournament_details SET value = 0 WHERE argument IN ('Active_ID', 'OnDeck_ID')");
+    }
+
+    const result = await client.query(`
       UPDATE tournaments
       SET
-        tournament_title = $1,
-        tournament_start_date = $2,
-        tournament_end_date = $3,
-        tournament_hours = $4,
-        tournament_contact = $5,
-        tournament_address = $6,
-        tournament_city = $7,
-        tournament_state = $8,
-        tournament_country = $9,
-        tournament_email = $10,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE tournament_id = $11
+        tournament_title = $1, tournament_start_date = $2, tournament_end_date = $3,
+        tournament_hours = $4, tournament_contact = $5, tournament_address = $6,
+        tournament_city = $7, tournament_state = $8, tournament_country = $9,
+        tournament_email = $10, is_active = $11, updated_at = CURRENT_TIMESTAMP
+      WHERE tournament_id = $12
       RETURNING *
     `, [
       tournament_title,
@@ -112,11 +120,17 @@ export const updateTournament = async (
       tournament_state || null,
       tournament_country || null,
       tournament_email || null,
+      is_active || false,
       id
     ]);
+
+    await client.query('COMMIT');
     return result.rows[0] || null;
   } catch (err) {
+    await client.query('ROLLBACK');
     throw new Error(err.message);
+  } finally {
+    client.release();
   }
 };
 

@@ -40,10 +40,13 @@ export const createTournament = async (req, res) => {
     tournament_state,
     tournament_country,
     tournament_email,
+    is_active // <--- Extract this
   } = req.body;
+
   if (!tournament_title) {
     return res.status(400).json({ error: "Tournament title is required" });
   }
+
   try {
     const tournament = await addTournament(
       tournament_title,
@@ -55,7 +58,8 @@ export const createTournament = async (req, res) => {
       tournament_city,
       tournament_state,
       tournament_country,
-      tournament_email
+      tournament_email,
+      is_active // <--- Pass it to the model
     );
     res.status(201).json(tournament);
   } catch (err) {
@@ -76,10 +80,13 @@ export const updateTournamentController = async (req, res) => {
     tournament_state,
     tournament_country,
     tournament_email,
+    is_active // <--- Extract this
   } = req.body;
+
   if (!tournament_title) {
     return res.status(400).json({ error: "Tournament title is required" });
   }
+
   try {
     const tournament = await updateTournament(
       id,
@@ -92,8 +99,10 @@ export const updateTournamentController = async (req, res) => {
       tournament_city,
       tournament_state,
       tournament_country,
-      tournament_email
+      tournament_email,
+      is_active // <--- Pass it to the model (CRITICAL FIX)
     );
+    
     if (!tournament) {
       return res.status(404).json({ error: "Tournament not found" });
     }
