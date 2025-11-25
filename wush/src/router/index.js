@@ -15,6 +15,7 @@ import Login from '../views/Login.vue';
 import ParticipantLogin from '../views/ParticipantLogin.vue';
 import Register from '../views/Register.vue';
 import Profile from '../views/Profile.vue';
+import RegistrationManagement from '../views/RegistrationManagement.vue'; // <--- Import
 
 const routes = [
   { path: '/judge-a1', component: JudgeA1, meta: { requiresAuth: true, roles: ['judge_a'] } },
@@ -34,6 +35,7 @@ const routes = [
   { path: '/register', name: 'Register', component: Register, meta: { requiresGuest: true } },
   { path: '/profile', name: 'Profile', component: Profile, meta: { requiresAuth: true, roles: ['participant'] } },
   { path: '/', redirect: '/scoreboard' },
+  { path: '/admin/registrations', component: RegistrationManagement, meta: { requiresAuth: true, roles: ['admin'] } },
 ];
 
 const router = createRouter({

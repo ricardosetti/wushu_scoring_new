@@ -1,7 +1,9 @@
 import pool from '../models/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import QRCode from 'qrcode';
+import { toggleTournamentSchool, getSchoolsWithStatus } from '../models/schoolModel.js';
 import dotenv from 'dotenv';
+
 
 dotenv.config();
 
@@ -13,16 +15,31 @@ const formatImage = (buffer, type = 'jpeg') => {
 
 export const fetchSchools = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM schools ORDER BY school_name ASC');
-    const schools = result.rows.map(school => ({
+    // Use the new model to get schools with the active status flag
+    const schoolsRaw = await getSchoolsWithStatus();
+    
+    // Format the binary data (Logos/QR) for the frontend
+    const schools = schoolsRaw.map(school => ({
       ...school,
-      school_logo: formatImage(school.school_logo, 'jpeg'),
-      registration_qr_code: formatImage(school.registration_qr_code, 'png'),
+      school_logo: school.school_logo ? `data:image/jpeg;base64,${Buffer.from(school.school_logo).toString('base64')}` : null,
+      registration_qr_code: school.registration_qr_code ? `data:image/png;base64,${Buffer.from(school.registration_qr_code).toString('base64')}` : null,
     }));
     res.json(schools);
   } catch (err) {
     console.error('Error fetching schools:', err);
-    res.status(500).json({ error: 'Failed to fetch schools' });
+    res.status(500).json({ error: 'Failed to fetch schools: ' + err.message });
+  }
+};
+
+export const toggleSchoolStatusController = async (req, res) => {
+  const { id } = req.params;
+  const { is_enabled } = req.body;
+
+  try {
+    await toggleTournamentSchool(id, is_enabled);
+    res.json({ message: "Updated successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 

@@ -94,7 +94,15 @@ export const getRegistrationByEmail = async (email) => {
 };
 
 export const getAllRegistrations = async () => {
-  const result = await pool.query('SELECT * FROM registrations ORDER BY created_at DESC');
+  // Update this query to JOIN tournaments and schools
+  // This allows the frontend to display "Winter Cup 2026" next to the name
+  const result = await pool.query(`
+    SELECT r.*, t.tournament_title, s.school_name
+    FROM registrations r
+    LEFT JOIN tournaments t ON r.tournament_id = t.tournament_id
+    LEFT JOIN schools s ON r.school_id = s.id
+    ORDER BY r.created_at DESC
+  `);
   return result.rows;
 };
 

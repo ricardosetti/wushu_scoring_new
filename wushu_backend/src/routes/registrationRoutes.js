@@ -11,6 +11,10 @@ import {
   validateRegistrationToken,
   updateRegistration,
 } from '../controllers/registrationController.js';
+import { 
+  // ... existing imports
+  approveRegistrationController // <--- Add this import
+} from '../controllers/registrationController.js';
 
 const router = express.Router();
 
@@ -75,5 +79,6 @@ router.put('/:id/status', checkRegistrationAccess, updateRegistrationStatusContr
 router.get('/:registration_id/divisions', checkRegistrationAccess, fetchDivisionsForRegistration);
 router.post('/division', checkRegistrationAccess, addDivisionToRegistration);
 router.delete('/division', checkRegistrationAccess, removeDivisionFromRegistration);
+router.post('/:id/approve', checkRegistrationAccess, approveRegistrationController);
 
 export default router;

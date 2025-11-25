@@ -13,6 +13,7 @@ import {
   getDivisionsForRegistration,
   removeRegistrationDivision,
 } from '../models/registrationDivisionsModel.js';
+import { addParticipantDivision } from '../models/participantModel.js';
 
 // --- Validation Helpers ---
 const validateRegistrationData = (data) => {
@@ -325,5 +326,82 @@ export const validateRegistrationToken = async (req, res) => {
   } catch (err) {
     console.error('Error validating registration token:', err);
     res.status(500).json({ error: 'Internal server error.' });
+  }
+};
+
+export const approveRegistrationController = async (req, res) => {
+  const { id } = req.params; // Registration ID
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Fetch the Registration Data
+    const regResult = await client.query(`
+      SELECT * FROM registrations WHERE id = $1
+    `, [id]);
+
+    if (regResult.rows.length === 0) {
+      throw new Error("Registration not found");
+    }
+    const reg = regResult.rows[0];
+
+    if (reg.status === 1) {
+      throw new Error("Registration is already approved");
+    }
+
+    // 2. Create the Participant (Copying data)
+    const participantResult = await client.query(`
+      INSERT INTO participants (
+        tournament_id, school_id, 
+        first_name, middle_name, last_name, 
+        birthdate, height_feet, height_inches, weight, gender, 
+        phone, emergency_contact_name, emergency_contact_phone, 
+        street, city, state, country, zip_code, participant_rank
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+      RETURNING id
+    `, [
+      reg.tournament_id, reg.school_id,
+      reg.first_name, reg.middle_name, reg.last_name,
+      reg.birthdate, reg.height_feet, reg.height_inches, reg.weight, reg.gender,
+      reg.phone, reg.emergency_contact_name, reg.emergency_contact_phone,
+      reg.street, reg.city, reg.state, reg.country, reg.zip_code, reg.participant_rank
+    ]);
+
+    const newParticipantId = participantResult.rows[0].id;
+
+    // 3. Fetch Requested Divisions
+    const divResult = await client.query(`
+      SELECT division_id FROM registrations_divisions WHERE registration_id = $1
+    `, [id]);
+
+    // 4. Link Participant to Divisions (tournament_participants)
+    for (const row of divResult.rows) {
+      await client.query(`
+        INSERT INTO tournament_participants (participant_id, division_id, tournament_id)
+        VALUES ($1, $2, $3)
+      `, [newParticipantId, row.division_id, reg.tournament_id]);
+    }
+
+    // 5. Mark Registration as Approved (Status 1)
+    // We also optionally link the participant_id back to the registration if you added that column, 
+    // but for now just status is enough.
+    await client.query(`
+      UPDATE registrations SET status = 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1
+    `, [id]);
+
+    await client.query('COMMIT');
+    
+    res.json({ 
+      message: "Registration approved and participant created", 
+      participant_id: newParticipantId 
+    });
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error("Approve Error:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 };
