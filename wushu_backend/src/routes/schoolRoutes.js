@@ -6,7 +6,8 @@ import {
   deleteSchool,
   fetchSchoolById,
   generateRegistrationLink,
-  toggleSchoolStatusController // <--- Ensure this is imported
+  toggleSchoolStatusController,
+  fetchPublicSchools // <--- Ensure this is imported
 } from '../controllers/schoolController.js';
 import multer from 'multer';
 
@@ -18,6 +19,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Protected Routes (Admin Only)
+router.get('/public', fetchPublicSchools);
 router.get('/', authenticateToken, authorizeRole('admin'), fetchSchools);
 router.post('/', authenticateToken, authorizeRole('admin'), upload.single('school_logo'), createSchool);
 router.put('/:id', authenticateToken, authorizeRole('admin'), upload.single('school_logo'), updateSchool);

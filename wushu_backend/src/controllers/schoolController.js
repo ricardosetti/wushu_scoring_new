@@ -164,3 +164,30 @@ export const generateRegistrationLink = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const fetchPublicSchools = async (req, res) => {
+  try {
+    const { tournament_id } = req.query;
+    
+    // If no tournament specified, use active
+    let tid = tournament_id;
+    if (!tid) {
+        const activeRes = await pool.query("SELECT tournament_id FROM tournaments WHERE is_active = TRUE LIMIT 1");
+        tid = activeRes.rows[0]?.tournament_id;
+    }
+
+    if (!tid) return res.json([]);
+
+    const result = await pool.query(`
+      SELECT s.id, s.school_name
+      FROM schools s
+      JOIN tournament_schools ts ON s.id = ts.school_id
+      WHERE ts.tournament_id = $1
+      ORDER BY s.school_name ASC
+    `, [tid]);
+
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

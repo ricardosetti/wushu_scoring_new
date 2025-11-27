@@ -10,11 +10,13 @@ import {
   removeDivisionFromRegistration,
   validateRegistrationToken,
   updateRegistration,
+  registerAsMember
 } from '../controllers/registrationController.js';
 import { 
   // ... existing imports
   approveRegistrationController // <--- Add this import
 } from '../controllers/registrationController.js';
+import { authenticateToken } from './auth.js';
 
 const router = express.Router();
 
@@ -80,5 +82,6 @@ router.get('/:registration_id/divisions', checkRegistrationAccess, fetchDivision
 router.post('/division', checkRegistrationAccess, addDivisionToRegistration);
 router.delete('/division', checkRegistrationAccess, removeDivisionFromRegistration);
 router.post('/:id/approve', checkRegistrationAccess, approveRegistrationController);
+router.post('/join', authenticateToken, registerAsMember);
 
 export default router;

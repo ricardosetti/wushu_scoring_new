@@ -12,11 +12,7 @@
       </div>
 
       <div v-if="loading" class="text-center py-10 text-gray-500">
-        <svg class="animate-spin h-8 w-8 mx-auto mb-2 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <p>Loading tournament details...</p>
+        <p>Loading details...</p>
       </div>
       
       <div v-else-if="error" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
@@ -25,13 +21,29 @@
       </div>
 
       <form v-else @submit.prevent="handleSubmit">
-        <div class="mb-8 p-4 bg-gray-50 rounded border border-gray-200 flex items-center justify-between">
-          <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase">School</label>
-            <div class="text-lg font-bold text-gray-800">{{ school ? school.school_name : 'Unknown School' }}</div>
+        
+        <div class="mb-8 p-4 bg-gray-50 rounded border border-gray-200">
+          <div v-if="isTokenMode">
+            <label class="block text-xs font-bold text-gray-500 uppercase">School (Locked via Invite)</label>
+            <div class="text-lg font-bold text-gray-800 mt-1">{{ schoolNameDisplay }}</div>
           </div>
-          <div v-if="school && school.school_logo" class="hidden sm:block">
-             </div>
+
+          <div v-else>
+            <label class="block text-sm font-bold text-gray-700 mb-2">Select Your School *</label>
+            <select 
+              v-model="form.school_id" 
+              required 
+              class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            >
+              <option :value="null" disabled>-- Choose a School --</option>
+              <option v-for="s in availableSchools" :key="s.id" :value="s.id">
+                {{ s.school_name }}
+              </option>
+            </select>
+            <p class="text-xs text-gray-500 mt-2">
+              * If you do not belong to a specific school, select <strong>Independent</strong>.
+            </p>
+          </div>
         </div>
 
         <h3 class="text-xl font-semibold mb-4 border-b pb-2 text-gray-700">Student Information</h3>
@@ -109,7 +121,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from '../axios';
 import { useRoute, useRouter } from 'vue-router';
 import InputField from '../components/InputField.vue';
@@ -117,7 +129,10 @@ import SelectField from '../components/SelectField.vue';
 
 const route = useRoute();
 const router = useRouter();
+
+// Query Params
 const token = ref(route.query.token || '');
+const urlTournamentId = ref(route.query.tournament_id || '');
 
 const form = ref({
   first_name: '', middle_name: '', last_name: '',
@@ -130,12 +145,16 @@ const form = ref({
 
 const selectedDivisions = ref([]);
 const divisions = ref([]);
-const school = ref(null);
 const activeTournament = ref(null);
+const availableSchools = ref([]);
+const lockedSchool = ref(null); // For token mode
 
 const error = ref('');
 const loading = ref(true);
 const submitting = ref(false);
+
+const isTokenMode = computed(() => !!token.value);
+const schoolNameDisplay = computed(() => lockedSchool.value ? lockedSchool.value.school_name : 'Loading...');
 
 const genderOptions = [
   { value: 'M', label: 'Male' },
@@ -147,33 +166,50 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString() : '';
 
 const fetchInitialData = async () => {
   try {
-    if (!token.value) throw new Error('Missing registration token. Please scan the QR code again.');
+    let tid = null;
 
-    // 1. Validate Token & Get Active Tournament List
-    const [schoolRes, tourneyRes] = await Promise.all([
-      axios.get(`/register/validate-token?token=${token.value}`),
-      axios.get('/tournaments')
-    ]);
+    // --- 1. Determine Tournament & School ---
+    if (isTokenMode.value) {
+      // Mode A: Token (Invite)
+      const schoolRes = await axios.get(`/register/validate-token?token=${token.value}`);
+      lockedSchool.value = schoolRes.data.school;
+      form.value.school_id = lockedSchool.value.id;
+      
+      // Token usually doesn't carry tournament ID explicitly in your schema (it links school to tournament), 
+      // but we can assume Active tournament for now, or you could fetch it via the backend validation.
+      // For safety, we look up the Active Tournament.
+      const tourneyRes = await axios.get('/tournaments');
+      activeTournament.value = tourneyRes.data.find(t => t.is_active) || tourneyRes.data[0];
+      tid = activeTournament.value.tournament_id;
 
-    school.value = schoolRes.data.school;
-    form.value.school_id = school.value.id;
+    } else {
+      // Mode B: Public (Dropdown)
+      if (urlTournamentId.value) {
+        const tRes = await axios.get(`/tournaments/${urlTournamentId.value}`);
+        activeTournament.value = tRes.data;
+        tid = activeTournament.value.tournament_id;
+      } else {
+        // Fallback: Find active
+        const tourneyRes = await axios.get('/tournaments');
+        activeTournament.value = tourneyRes.data.find(t => t.is_active);
+        if(activeTournament.value) tid = activeTournament.value.tournament_id;
+      }
 
-    // 2. Find the Active Tournament
-    // We look for is_active: true. If none, fallback to first (Legacy)
-    activeTournament.value = tourneyRes.data.find(t => t.is_active) || tourneyRes.data[0];
+      if (!activeTournament.value) throw new Error("No active tournament found.");
 
-    if (!activeTournament.value) {
-      throw new Error("No active tournament found accepting registrations.");
+      // Fetch Public Schools for this tournament
+      const schoolsRes = await axios.get('/schools/public', { params: { tournament_id: tid } });
+      availableSchools.value = schoolsRes.data;
     }
 
-    // 3. Fetch Divisions (Filtered for this tournament context)
-    // We pass active_only=true so the backend knows to look for current divisions
+    // --- 2. Fetch Divisions for this Tournament ---
     const divRes = await axios.get('/divisions', {
-      params: { active_only: true }
+      params: { tournament_id: tid } // Use the specific tournament ID we found
     });
     divisions.value = divRes.data;
 
   } catch (err) {
+    console.error(err);
     error.value = err.response?.data?.error || err.message || 'Failed to load registration data.';
   } finally {
     loading.value = false;
@@ -185,23 +221,25 @@ const handleSubmit = async () => {
     alert("Please select at least one division.");
     return;
   }
+  if (!form.value.school_id) {
+    alert("Please select a school.");
+    return;
+  }
 
   try {
     submitting.value = true;
     const payload = { 
       ...form.value, 
       divisions: selectedDivisions.value,
-      // CRITICAL: This links the student to the specific tournament ID
       tournament_id: activeTournament.value.tournament_id 
     };
     
     await axios.post('/register', payload);
     
     alert('Registration successful! You can now log in to view your profile.');
-    // Redirect to Participant Login instead of Admin Login
     router.push('/participant-login');
   } catch (err) {
-    error.value = err.response?.data?.error || 'Registration failed. Please check your inputs.';
+    error.value = err.response?.data?.error || 'Registration failed.';
     window.scrollTo(0,0);
   } finally {
     submitting.value = false;

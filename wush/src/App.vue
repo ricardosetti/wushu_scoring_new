@@ -1,11 +1,11 @@
 <template>
   <div>
-    <nav class="bg-darkgray p-4">
+    <nav v-if="!$route.meta.hideNavbar" class="bg-darkgray p-4">
       <ul class="flex space-x-4 text-white">
-        <!-- Admin: Show all links -->
         <li v-if="role === 'admin' || role === 'head_judge'">
           <router-link to="/head-judge" class="mx-2 hover:underline">Head Judge</router-link>
         </li>
+        
         <li v-if="role === 'admin' || role === 'judge_a'">
           <router-link to="/judge-a1" class="mx-2 hover:underline">Judge A1</router-link>
         </li>
@@ -18,18 +18,22 @@
         <li v-if="role === 'admin' || role === 'judge_b'">
           <router-link to="/judge-b2" class="mx-2 hover:underline">Judge B2</router-link>
         </li>
+
         <li v-if="role === 'admin' || !role">
           <router-link to="/scoreboard" class="mx-2 hover:underline">Scoreboard</router-link>
         </li>
         <li v-if="role === 'admin' || !role">
           <router-link to="/leaderboard" class="mx-2 hover:underline">Leaderboard</router-link>
         </li>
+
         <li v-if="role === 'admin'">
           <router-link to="/admin" class="mx-2 hover:underline">Admin</router-link>
         </li>
+
         <li v-if="role === 'participant'">
           <router-link to="/profile" class="mx-2 hover:underline">Profile</router-link>
         </li>
+
         <li v-if="role">
           <button @click="logout" class="mx-2 hover:underline">Logout</button>
         </li>
@@ -38,6 +42,7 @@
         </li>
       </ul>
     </nav>
+
     <router-view />
   </div>
 </template>
@@ -57,6 +62,7 @@ const logout = () => {
   router.push('/login');
 };
 
+// Watch for route changes to update role (e.g. after login/logout)
 watch(
   () => route.path,
   () => {
