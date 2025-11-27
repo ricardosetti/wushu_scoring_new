@@ -1,176 +1,171 @@
 <template>
-  <div class="p-6 max-w-2xl mx-auto bg-white rounded-xl shadow-lg space-y-6">
-    <h2 class="text-3xl font-bold text-center text-primary">Head Judge Panel</h2>
-
-    <!-- Loading State -->
-    <div v-if="loading" class="text-center text-gray-500 text-xl">
-      Loading Head Judge panel...
-    </div>
-    <!-- Error State -->
-    <div v-else-if="error" class="text-center text-red-500 text-xl">
-      {{ error }}
-    </div>
-    <!-- Main Content -->
-    <div v-else>
-      <!-- Active Division Label -->
-      <div class="bg-gray-100 p-4 rounded-lg shadow-inner text-center">
-        <h3 class="text-lg font-semibold text-gray-800">
-          Active Division: <span class="text-primary">{{ activeDivision ? activeDivision.division_name : 'None' }}</span>
-        </h3>
-        <button
-          @click="showStartDivisionModal = true"
-          class="mt-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
-        >
-          Start Division
-        </button>
+  <div class="p-6 max-w-4xl mx-auto bg-white rounded-xl shadow-lg space-y-6">
+    <div class="flex justify-between items-center border-b pb-4">
+      <h2 class="text-3xl font-bold text-primary">Head Judge Panel</h2>
+      <div v-if="tournamentTitle" class="text-sm text-gray-500 font-medium bg-gray-100 px-3 py-1 rounded-full">
+        {{ tournamentTitle }}
       </div>
+    </div>
 
-      <!-- Timer Section -->
-      <div class="bg-gray-50 p-4 rounded-lg shadow-inner">
-        <h3 class="text-lg font-semibold text-primary mb-3">Timer</h3>
-        <div class="text-center text-4xl font-mono text-gray-800 mb-4">{{ formattedTime }}</div>
-        <div class="flex justify-center space-x-4">
+    <!-- Loading / Error -->
+    <div v-if="loading" class="text-center text-gray-500 text-xl py-10">Loading panel...</div>
+    <div v-else-if="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-center">{{ error }}</div>
+    
+    <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- LEFT COLUMN: Division & Timer -->
+      <div class="space-y-6">
+        <!-- Active Division Control -->
+        <div class="bg-blue-50 p-5 rounded-xl shadow-sm border border-blue-100">
+          <h3 class="text-sm font-bold text-blue-800 uppercase tracking-wide mb-2">Current Division</h3>
+          <div class="text-xl font-bold text-gray-900 mb-4">
+            {{ activeDivision ? activeDivision.division_name : 'None Selected' }}
+          </div>
           <button
-            @click="toggleTimer"
-            class="px-6 py-2 rounded-lg text-white transition"
-            :class="isTimerRunning ? 'bg-red-500 hover:bg-red-600' : 'bg-accent hover:bg-green-700'"
+            @click="showStartDivisionModal = true"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow transition"
           >
-            {{ isTimerRunning ? 'Stop' : 'Start' }}
-          </button>
-          <button
-            @click="resetTimer"
-            class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition"
-          >
-            Reset
+            Change Division
           </button>
         </div>
-      </div>
 
-      <!-- Start Division Modal -->
-      <div
-        v-if="showStartDivisionModal"
-        class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"
-      >
-        <div class="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
-          <h3 class="text-xl font-bold mb-4 text-gray-800">Select Division to Start</h3>
-          <select
-            v-model="selectedDivisionId"
-            class="border p-2 w-full rounded-md focus:ring-2 focus:ring-blue-500 mb-4"
-          >
-            <option value="" disabled>Select a division</option>
-            <option v-for="division in divisions" :key="division.id" :value="division.id">
-              {{ division.division_name }}
-            </option>
-          </select>
-          <div class="flex justify-end space-x-2">
+        <!-- Timer -->
+        <div class="bg-gray-900 p-5 rounded-xl shadow-md text-center text-white">
+          <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Performance Timer</h3>
+          <div class="text-5xl font-mono font-bold mb-4 tracking-widest">{{ formattedTime }}</div>
+          <div class="flex justify-center space-x-3">
             <button
-              @click="startDivision"
-              :disabled="!selectedDivisionId"
-              class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition disabled:bg-gray-400"
+              @click="toggleTimer"
+              class="w-24 py-2 rounded font-bold transition shadow"
+              :class="isTimerRunning ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'"
             >
-              OK
+              {{ isTimerRunning ? 'STOP' : 'START' }}
             </button>
             <button
-              @click="showStartDivisionModal = false"
-              class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+              @click="resetTimer"
+              class="w-24 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded font-bold transition shadow"
             >
-              Cancel
+              RESET
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Participants List -->
-      <div v-if="activeDivision" class="bg-gray-50 p-4 rounded-lg shadow-inner">
-        <div v-if="filteredParticipants.length">
-          <div class="space-y-4">
-            <div v-for="participant in filteredParticipants" :key="participant.id" class="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-white rounded-lg shadow hover:bg-gray-100 transition">
-              <div class="flex-1 mb-2 sm:mb-0">
-                <p class="text-lg font-semibold text-gray-800">
-                  {{ participant.fullName }}
-                </p>
-                <p class="text-sm text-gray-600">
-                  School: {{ participant.school_name || 'N/A' }}
-                </p>
-                <p class="text-sm text-gray-600">
-                  Divisions: {{ participant.divisions.length ? participant.divisions.map(d => d.division_name).join(', ') : 'N/A' }}
-                </p>
+      <!-- MIDDLE COLUMN: Participants -->
+      <div class="lg:col-span-2 space-y-6">
+        
+        <!-- Participant Selection List -->
+        <div class="bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col h-96">
+          <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
+            <h3 class="font-bold text-gray-700">Participants Queue</h3>
+            <span class="text-xs text-gray-500">{{ filteredParticipants.length }} registered</span>
+          </div>
+          
+          <div class="flex-1 overflow-y-auto p-2 space-y-2">
+            <div v-if="filteredParticipants.length === 0" class="text-center text-gray-400 py-10">
+              <p>No participants found in this division.</p>
+            </div>
+
+            <div 
+              v-for="p in filteredParticipants" 
+              :key="p.id" 
+              class="flex items-center justify-between p-3 rounded-lg border transition"
+              :class="{
+                'border-green-500 bg-green-50 ring-1 ring-green-500': selectedActiveParticipant === p.id,
+                'border-yellow-400 bg-yellow-50': selectedOnDeckParticipant === p.id && selectedActiveParticipant !== p.id,
+                'border-gray-200 hover:bg-gray-50': selectedActiveParticipant !== p.id && selectedOnDeckParticipant !== p.id
+              }"
+            >
+              <div>
+                <div class="font-bold text-gray-800">{{ p.fullName }}</div>
+                <div class="text-xs text-gray-500">{{ p.school_name }}</div>
               </div>
+              
               <div class="flex space-x-2">
-                <label class="text-sm text-gray-700">Active</label>
-                <input
-                  type="radio"
-                  name="activeParticipant"
-                  :value="participant.id"
-                  v-model="selectedActiveParticipant"
-                  class="accent-accent"
-                />
-                <label class="text-sm text-gray-700">On Deck</label>
-                <input
-                  type="radio"
-                  name="onDeckParticipant"
-                  :value="participant.id"
-                  v-model="selectedOnDeckParticipant"
-                  class="accent-accent"
-                />
+                <button 
+                  @click="setActive(p.id)"
+                  class="px-3 py-1 text-xs font-bold rounded transition"
+                  :class="selectedActiveParticipant === p.id ? 'bg-green-600 text-white shadow' : 'bg-gray-200 text-gray-600 hover:bg-green-200'"
+                >
+                  ON MAT
+                </button>
+                <button 
+                  @click="setOnDeck(p.id)"
+                  class="px-3 py-1 text-xs font-bold rounded transition"
+                  :class="selectedOnDeckParticipant === p.id ? 'bg-yellow-500 text-white shadow' : 'bg-gray-200 text-gray-600 hover:bg-yellow-200'"
+                >
+                  ON DECK
+                </button>
               </div>
             </div>
           </div>
         </div>
-        <div v-else class="text-center text-gray-500">
-          <p>No participants registered for this division.</p>
-        </div>
-      </div>
-      <div v-else class="bg-gray-50 p-4 rounded-lg shadow-inner text-center text-gray-500">
-        <p>No Active Division</p>
-      </div>
 
-      <!-- Judge Controls -->
-      <div class="space-y-6">
-        <div class="flex justify-between items-center bg-gray-50 p-4 rounded-lg">
-          <label class="text-lg font-semibold text-primary">Start Scoring (All):</label>
-          <button
-            @click="toggleAllJudges"
-            :class="allJudgesOn ? 'bg-accent hover:bg-green-700' : 'bg-red-500 hover:bg-red-600'"
-            class="text-white px-4 py-2 rounded-lg transition"
-          >
-            {{ allJudgesOn ? 'On' : 'Off' }}
-          </button>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div v-for="judge in judges" :key="judge.id" class="flex justify-between items-center bg-gray-50 p-4 rounded-lg">
-            <label class="text-lg font-semibold text-primary">{{ judge.name }}:</label>
-            <button
+        <!-- Judge Controls -->
+        <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-gray-800">Scoring Control</h3>
+            <div class="flex items-center space-x-2">
+              <span class="text-sm text-gray-600">Master Switch:</span>
+              <button 
+                @click="toggleAllJudges"
+                class="px-4 py-1 rounded-full text-xs font-bold transition"
+                :class="allJudgesOn ? 'bg-green-600 text-white' : 'bg-red-500 text-white'"
+              >
+                {{ allJudgesOn ? 'ALL OPEN' : 'ALL CLOSED' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <button 
+              v-for="judge in judges" 
+              :key="judge.id"
               @click="toggleJudge(judge.id)"
-              :class="judgeStates[judge.id] ? 'bg-accent hover:bg-green-700' : 'bg-red-500 hover:bg-red-600'"
-              class="text-white px-4 py-2 rounded-lg transition"
+              class="py-3 rounded-lg font-bold text-sm transition border shadow-sm flex flex-col items-center justify-center"
+              :class="judgeStates[judge.id] ? 'bg-green-100 border-green-400 text-green-800' : 'bg-white border-gray-300 text-gray-400'"
             >
-              {{ judgeStates[judge.id] ? 'On' : 'Off' }}
+              <span>{{ judge.name }}</span>
+              <span class="text-[10px] mt-1 uppercase">{{ judgeStates[judge.id] ? 'Scoring' : 'Locked' }}</span>
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <button 
+              @click="saveTournamentDetails" 
+              class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-bold shadow transition flex items-center justify-center"
+            >
+              <span class="mr-2">💾</span> Save Status
+            </button>
+            <button 
+              @click="publishScore" 
+              class="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-lg font-bold shadow transition flex items-center justify-center"
+              :disabled="!selectedActiveParticipant"
+              :class="{'opacity-50 cursor-not-allowed': !selectedActiveParticipant}"
+            >
+              <span class="mr-2">📢</span> Publish Score
             </button>
           </div>
         </div>
-      </div>
 
-      <div class="flex space-x-4">
-        <button @click="saveTournamentDetails" class="w-full bg-accent text-white p-3 rounded-lg hover:bg-green-700 transition">
-          Save
-        </button>
-        <button @click="calculateFinalScore" class="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition">
-          Calculate Final Score
-        </button>
-        <button @click="publishScore" class="w-full bg-secondary text-white p-3 rounded-lg hover:bg-orange-600 transition">
-          Publish Score
-        </button>
       </div>
-
-      <!-- Logout Button -->
-      <button
-        @click="logout"
-        class="w-full bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition"
-      >
-        Logout
-      </button>
     </div>
+
+    <!-- Modals -->
+    <div v-if="showStartDivisionModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+        <h3 class="text-xl font-bold mb-4">Select Division</h3>
+        <select v-model="selectedDivisionId" class="w-full border p-3 rounded-lg mb-6 bg-gray-50 focus:ring-2 focus:ring-blue-500">
+          <option value="" disabled>Choose a division...</option>
+          <option v-for="div in divisions" :key="div.id" :value="div.id">{{ div.division_name }}</option>
+        </select>
+        <div class="flex justify-end space-x-3">
+          <button @click="showStartDivisionModal = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+          <button @click="startDivision" class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 shadow">Set Active</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -182,63 +177,20 @@ import { useRouter } from 'vue-router';
 const socket = inject("socket");
 const router = useRouter();
 
-// Timer State
-const elapsedTime = ref(0); // Time in seconds
-const isTimerRunning = ref(false);
-let timerInterval = null;
-
-// Timer Computed Property for Formatting
-const formattedTime = computed(() => {
-  const minutes = Math.floor(elapsedTime.value / 60);
-  const seconds = elapsedTime.value % 60;
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-});
-
-// Timer Methods
-const toggleTimer = () => {
-  if (isTimerRunning.value) {
-    // Stop the timer
-    clearInterval(timerInterval);
-    timerInterval = null;
-    isTimerRunning.value = false;
-  } else {
-    // Start the timer
-    timerInterval = setInterval(() => {
-      elapsedTime.value += 1;
-    }, 1000);
-    isTimerRunning.value = true;
-  }
-};
-
-const resetTimer = () => {
-  // Stop the timer if it's running
-  if (isTimerRunning.value) {
-    clearInterval(timerInterval);
-    timerInterval = null;
-    isTimerRunning.value = false;
-  }
-  // Reset the elapsed time
-  elapsedTime.value = 0;
-};
-
-// Head Judge State
+// State
+const loading = ref(true);
+const error = ref('');
+const tournamentTitle = ref('');
 const participants = ref([]);
-const filteredParticipants = computed(() => {
-  if (!activeDivision.value) return [];
-  return participants.value.filter((participant) =>
-    participant.divisions.some(d => d.division_name === activeDivision.value.division_name)
-  );
-});
 const divisions = ref([]);
 const activeDivision = ref(null);
 const selectedActiveParticipant = ref(null);
 const selectedOnDeckParticipant = ref(null);
-const judgeStates = ref({
-  Judge_A1: 0,
-  Judge_A2: 0,
-  Judge_B1: 0,
-  Judge_B2: 0,
-});
+const showStartDivisionModal = ref(false);
+const selectedDivisionId = ref("");
+
+// Judges
+const judgeStates = ref({ Judge_A1: 0, Judge_A2: 0, Judge_B1: 0, Judge_B2: 0 });
 const judges = [
   { id: "Judge_A1", name: "Judge A1" },
   { id: "Judge_A2", name: "Judge A2" },
@@ -246,248 +198,159 @@ const judges = [
   { id: "Judge_B2", name: "Judge B2" },
 ];
 const allJudgesOn = ref(false);
-const showStartDivisionModal = ref(false);
-const selectedDivisionId = ref("");
-const loading = ref(true);
-const error = ref('');
 
-const fetchParticipants = async () => {
+// Timer
+const elapsedTime = ref(0);
+const isTimerRunning = ref(false);
+let timerInterval = null;
+
+// Computed
+const formattedTime = computed(() => {
+  const m = Math.floor(elapsedTime.value / 60).toString().padStart(2, '0');
+  const s = (elapsedTime.value % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+});
+
+const filteredParticipants = computed(() => {
+  if (!activeDivision.value) return [];
+  return participants.value.filter((p) =>
+    p.divisions.some(d => d.id === activeDivision.value.id) // Match by ID is safer
+  );
+});
+
+// Data Fetching
+const fetchAllData = async () => {
   try {
-    const res = await axios.get("/participants");
-    participants.value = res.data.map((participant) => {
-      participant.fullName = [
-        participant.first_name || '',
-        participant.middle_name || '',
-        participant.last_name || ''
-      ]
-        .filter((part) => part)
-        .join(" ");
-      return participant;
-    });
+    loading.value = true;
+    const [pRes, dRes, adRes, tdRes, tRes] = await Promise.all([
+      axios.get("/participants"), // Fetches active tournament participants
+      axios.get("/divisions", { params: { active_only: true } }), // Fetches relevant divisions
+      axios.get("/divisions/active"),
+      axios.get("/tournament-details"),
+      axios.get("/tournaments")
+    ]);
+
+    participants.value = pRes.data.map(p => ({
+      ...p,
+      fullName: `${p.first_name} ${p.last_name}`
+    }));
+    
+    divisions.value = dRes.data;
+    activeDivision.value = adRes.data;
+    
+    // Parse Details
+    if (tdRes.data) {
+      selectedActiveParticipant.value = tdRes.data.Active_ID || null;
+      selectedOnDeckParticipant.value = tdRes.data.OnDeck_ID || null;
+      judgeStates.value.Judge_A1 = tdRes.data.Judge_A1 || 0;
+      judgeStates.value.Judge_A2 = tdRes.data.Judge_A2 || 0;
+      judgeStates.value.Judge_B1 = tdRes.data.Judge_B1 || 0;
+      judgeStates.value.Judge_B2 = tdRes.data.Judge_B2 || 0;
+      checkAllJudges();
+    }
+
+    // Find Active Tournament Title
+    const activeT = tRes.data.find(t => t.is_active);
+    tournamentTitle.value = activeT ? activeT.tournament_title : '';
+
   } catch (err) {
-    error.value = 'Failed to fetch participants: ' + (err.response?.data?.error || err.message);
-    participants.value = [];
+    console.error(err);
+    error.value = "Failed to load system data.";
+  } finally {
+    loading.value = false;
   }
 };
 
-const fetchDivisions = async () => {
-  try {
-    const res = await axios.get("/divisions");
-    divisions.value = res.data;
-  } catch (err) {
-    error.value = 'Failed to fetch divisions: ' + (err.response?.data?.error || err.message);
-    divisions.value = [];
-  }
-};
-
-const fetchActiveDivision = async () => {
-  try {
-    const res = await axios.get("/divisions/active");
-    activeDivision.value = res.data;
-  } catch (err) {
-    error.value = 'Failed to fetch active division: ' + (err.response?.data?.error || err.message);
-    activeDivision.value = null;
-  }
-};
+// Actions
+const setActive = (id) => { selectedActiveParticipant.value = id; };
+const setOnDeck = (id) => { selectedOnDeckParticipant.value = id; };
 
 const startDivision = async () => {
   if (!selectedDivisionId.value) return;
   try {
     const res = await axios.post("/divisions/set-active", { division_id: selectedDivisionId.value });
     activeDivision.value = res.data;
-    socket.emit("activeDivisionUpdated", res.data);
-    showStartDivisionModal.value = false;
-    selectedDivisionId.value = "";
-    // Validate selected participants
-    validateSelectedParticipants();
-  } catch (err) {
-    console.error("Error setting active division:", err.response?.data || err.message);
-    alert("Error setting active division.");
-  }
-};
-
-const fetchTournamentDetails = async () => {
-  try {
-    const res = await axios.get("/tournament-details");
-    if (res.data) {
-      selectedActiveParticipant.value = res.data.Active_ID || null;
-      selectedOnDeckParticipant.value = res.data.OnDeck_ID || null;
-      judgeStates.value.Judge_A1 = res.data.Judge_A1 || 0;
-      judgeStates.value.Judge_A2 = res.data.Judge_A2 || 0;
-      judgeStates.value.Judge_B1 = res.data.Judge_B1 || 0;
-      judgeStates.value.Judge_B2 = res.data.Judge_B2 || 0;
-      allJudgesOn.value = Object.values(judgeStates.value).every((state) => state === 1);
-      // Validate selected participants
-      validateSelectedParticipants();
-    }
-  } catch (err) {
-    error.value = 'Failed to fetch tournament details: ' + (err.response?.data?.error || err.message);
-  }
-};
-
-const validateSelectedParticipants = () => {
-  if (!activeDivision.value) {
-    selectedActiveParticipant.value = null;
+    selectedActiveParticipant.value = null; // Reset current skater when division changes
     selectedOnDeckParticipant.value = null;
-    return;
-  }
-  // Ensure selected participants belong to the active division
-  if (selectedActiveParticipant.value) {
-    const activeParticipant = participants.value.find(p => p.id === selectedActiveParticipant.value);
-    if (!activeParticipant || !activeParticipant.divisions.some(d => d.division_name === activeDivision.value.division_name)) {
-      selectedActiveParticipant.value = null;
-    }
-  }
-  if (selectedOnDeckParticipant.value) {
-    const onDeckParticipant = participants.value.find(p => p.id === selectedOnDeckParticipant.value);
-    if (!onDeckParticipant || !onDeckParticipant.divisions.some(d => d.division_name === activeDivision.value.division_name)) {
-      selectedOnDeckParticipant.value = null;
-    }
-  }
+    showStartDivisionModal.value = false;
+    
+    // Broadcast update
+    socket.emit("activeDivisionUpdated", res.data);
+    saveTournamentDetails(); // Auto-save the reset IDs
+  } catch (e) { alert("Error changing division"); }
 };
 
-const toggleJudge = (judgeId) => {
-  judgeStates.value[judgeId] = judgeStates.value[judgeId] ? 0 : 1;
+const toggleJudge = (id) => {
+  judgeStates.value[id] = judgeStates.value[id] ? 0 : 1;
+  checkAllJudges();
 };
 
 const toggleAllJudges = () => {
   allJudgesOn.value = !allJudgesOn.value;
-  judges.forEach((judge) => {
-    judgeStates.value[judge.id] = allJudgesOn.value ? 1 : 0;
-  });
+  judges.forEach(j => judgeStates.value[j.id] = allJudgesOn.value ? 1 : 0);
+};
+
+const checkAllJudges = () => {
+  allJudgesOn.value = judges.every(j => judgeStates.value[j.id] === 1);
 };
 
 const saveTournamentDetails = async () => {
   try {
-    await axios.post("/tournament-details", {
-      argument: "Active_ID",
-      value: selectedActiveParticipant.value,
-    });
-    await axios.post("/tournament-details", {
-      argument: "OnDeck_ID",
-      value: selectedOnDeckParticipant.value,
-    });
-    for (const judge of judges) {
-      await axios.post("/tournament-details", {
-        argument: judge.id,
-        value: judgeStates.value[judge.id],
-      });
-    }
+    // Send requests in parallel
+    const requests = [
+      axios.post("/tournament-details", { argument: "Active_ID", value: selectedActiveParticipant.value || 0 }),
+      axios.post("/tournament-details", { argument: "OnDeck_ID", value: selectedOnDeckParticipant.value || 0 }),
+      ...judges.map(j => axios.post("/tournament-details", { argument: j.id, value: judgeStates.value[j.id] }))
+    ];
+    
+    await Promise.all(requests);
+    
     socket.emit("updateTournamentDetails", {
       Active_ID: selectedActiveParticipant.value,
       OnDeck_ID: selectedOnDeckParticipant.value,
-      ...judgeStates.value,
+      ...judgeStates.value
     });
-    alert("Tournament details saved successfully!");
-    await fetchTournamentDetails();
-  } catch (err) {
-    console.error("Error saving tournament details:", err.response?.data || err.message);
-    alert("Error saving tournament details.");
-  }
-};
-
-const calculateFinalScore = async () => {
-  if (!selectedActiveParticipant.value) {
-    alert("No active participant selected!");
-    return;
-  }
-  try {
-    const res = await axios.get(`/scores/participant/${selectedActiveParticipant.value}`);
-    console.log("Fetched scores:", res.data);
-    const scores = res.data.reduce((acc, { judge, score }) => {
-      acc[judge] = Number(score);
-      return acc;
-    }, {});
-
-    const requiredJudges = ["A1", "A2", "B1", "B2"];
-    const missingJudges = requiredJudges.filter((judge) => scores[judge] === undefined);
-    if (missingJudges.length > 0) {
-      alert(`Cannot calculate final score: Missing scores from ${missingJudges.join(", ")}.`);
-      return;
-    }
-
-    const a1 = scores["A1"];
-    const a2 = scores["A2"];
-    const finalA = (a1 + a2) / 2;
-    console.log(`A1: ${a1}, A2: ${a2}, FinalA: ${finalA}`);
-
-    const b1 = scores["B1"];
-    const b2 = scores["B2"];
-    const finalB = (b1 + b2) / 2;
-    console.log(`B1: ${b1}, B2: ${b2}, FinalB: ${finalB}`);
-
-    const final = finalA + finalB;
-    console.log(`Final: ${final}`);
-
-    if (isNaN(finalA) || isNaN(finalB) || isNaN(final)) {
-      alert("Cannot calculate final score: Invalid judge scores.");
-      return;
-    }
-
-    await axios.post("/scores", {
-      participant_id: selectedActiveParticipant.value,
-      judge: "FinalA",
-      score: finalA,
-    });
-    await axios.post("/scores", {
-      participant_id: selectedActiveParticipant.value,
-      judge: "FinalB",
-      score: finalB,
-    });
-    await axios.post("/scores", {
-      participant_id: selectedActiveParticipant.value,
-      judge: "Final",
-      score: final,
-    });
-
-    alert(`Final Score Calculated: FinalA = ${finalA}, FinalB = ${finalB}, Final = ${final}`);
-  } catch (err) {
-    console.error("Error calculating final score:", err.response?.data || err.message);
-    alert("Error calculating final score. Check console for details.");
+    
+    // Don't alert on success every time, it's annoying. Just UI feedback if needed.
+  } catch (e) {
+    console.error(e);
+    alert("Failed to save status to server.");
   }
 };
 
 const publishScore = async () => {
-  if (!selectedActiveParticipant.value) {
-    alert("No active participant selected!");
-    return;
-  }
+  if (!selectedActiveParticipant.value) return;
+  if(!confirm("Calculate and Publish scores for this athlete?")) return;
+
   try {
-    const res = await axios.get(`/scores/participant/${selectedActiveParticipant.value}`);
-    const scores = res.data.reduce((acc, { judge, score }) => {
-      acc[judge] = score;
-      return acc;
-    }, {});
-
-    const requiredJudges = ["A1", "A2", "B1", "B2", "FinalA", "FinalB", "Final"];
-    const missingJudges = requiredJudges.filter((judge) => scores[judge] === undefined);
-    if (missingJudges.length > 0) {
-      alert(`Cannot publish score: Missing scores from ${missingJudges.join(", ")}.`);
-      return;
-    }
-
-    const publishData = requiredJudges.map((judge) => ({
-      judge,
-      score: scores[judge],
-    }));
-
     await axios.post("/published-scores", {
       participant_id: selectedActiveParticipant.value,
-      scores: publishData,
       division_id: activeDivision.value.id,
     });
-
-    socket.emit("scorePublished", {
-      participantId: selectedActiveParticipant.value,
-      division_id: activeDivision.value.id,
-      scores: publishData,
-    });
-
-    alert("Score published successfully!");
-  } catch (err) {
-    console.error("Error publishing score:", err.response?.data || err.message);
-    alert("Error publishing score. Check console for details.");
+    alert("Score Published!");
+    // Close judges automatically
+    allJudgesOn.value = false;
+    toggleAllJudges(); // Sets all to 0
+    saveTournamentDetails();
+  } catch (e) {
+    alert("Failed to publish score: " + (e.response?.data?.error || e.message));
   }
+};
+
+// Timer
+const toggleTimer = () => {
+  if (isTimerRunning.value) {
+    clearInterval(timerInterval);
+    isTimerRunning.value = false;
+  } else {
+    timerInterval = setInterval(() => elapsedTime.value++, 1000);
+    isTimerRunning.value = true;
+  }
+};
+const resetTimer = () => {
+  clearInterval(timerInterval);
+  isTimerRunning.value = false;
+  elapsedTime.value = 0;
 };
 
 const logout = () => {
@@ -496,89 +359,18 @@ const logout = () => {
   router.push('/login');
 };
 
-// Fetch all data on mount
-const fetchAllData = async () => {
-  try {
-    loading.value = true;
-    error.value = '';
-    await Promise.all([
-      fetchParticipants(),
-      fetchDivisions(),
-      fetchActiveDivision(),
-      fetchTournamentDetails(),
-    ]);
-  } catch (err) {
-    error.value = 'Failed to load Head Judge panel: ' + (err.response?.data?.error || err.message);
-  } finally {
-    loading.value = false;
-  }
-};
-
-// Polling fallback
-const pollingInterval = ref(null);
-const startPolling = () => {
-  pollingInterval.value = setInterval(() => {
-    fetchAllData();
-  }, 30000); // Poll every 30 seconds
-};
-
+// Lifecycle
 onMounted(() => {
   fetchAllData();
-  startPolling();
-
+  
   socket.on("judgeSubmitted", (data) => {
-    const { judge } = data;
-    judgeStates.value[judge] = 0;
-    console.log(`${judge} submitted score, turned off`);
-  });
-
-  socket.on("tournamentDetailsUpdated", (data) => {
-    selectedActiveParticipant.value = data.Active_ID || null;
-    selectedOnDeckParticipant.value = data.OnDeck_ID || null;
-    judgeStates.value.Judge_A1 = data.Judge_A1 || 0;
-    judgeStates.value.Judge_A2 = data.Judge_A2 || 0;
-    judgeStates.value.Judge_B1 = data.Judge_B1 || 0;
-    judgeStates.value.Judge_B2 = data.Judge_B2 || 0;
-    allJudgesOn.value = Object.values(judgeStates.value).every((state) => state === 1);
-    validateSelectedParticipants();
-  });
-
-  socket.on("activeDivisionUpdated", (data) => {
-    activeDivision.value = data;
-    validateSelectedParticipants();
-  });
-
-  socket.on("scorePublished", (data) => {
-    console.log("Score published:", data);
-  });
-
-  socket.on("deductionUpdated", (data) => {
-    console.log("Deduction updated:", data);
+    judgeStates.value[data.judge] = 0;
+    checkAllJudges();
   });
 });
 
 onUnmounted(() => {
-  if (pollingInterval.value) {
-    clearInterval(pollingInterval.value);
-  }
-  // Clean up timer interval
-  if (timerInterval) {
-    clearInterval(timerInterval);
-  }
+  clearInterval(timerInterval);
   socket.off("judgeSubmitted");
-  socket.off("tournamentDetailsUpdated");
-  socket.off("activeDivisionUpdated");
-  socket.off("scorePublished");
-  socket.off("deductionUpdated");
 });
 </script>
-
-<style>
-.text-primary { color: #1E40AF; }
-.bg-primary { background-color: #1E40AF; }
-.text-secondary { color: #F97316; }
-.bg-secondary { background-color: #F97316; }
-.text-accent { color: #10B981; }
-.bg-accent { background-color: #10B981; }
-.bg-red-500 { background-color: #b9103a; }
-</style>

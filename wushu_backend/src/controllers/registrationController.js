@@ -301,9 +301,13 @@ export const approveRegistrationController = async (req, res) => {
     }
 
     // 5. Mark Registration as Approved
-    await client.query(`
-      UPDATE registrations SET status = 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1
-    `, [id]);
+await client.query(`
+      UPDATE registrations 
+      SET status = 1, 
+          participant_id = $1, -- <--- Save the Link!
+          updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $2
+    `, [newParticipantId, id]); 
 
     await client.query('COMMIT');
     

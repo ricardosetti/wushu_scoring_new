@@ -121,10 +121,14 @@ export const getRegistrationsByUser = async (userId) => {
   const result = await pool.query(`
     SELECT r.*, 
            t.tournament_title, t.tournament_start_date, t.tournament_city, t.is_active,
-           s.school_name
+           s.school_name,
+           -- Fetch Results Data using the new link
+           tr.total_score, tr.rank, tr.score_breakdown
     FROM registrations r
     JOIN tournaments t ON r.tournament_id = t.tournament_id
     LEFT JOIN schools s ON r.school_id = s.id
+    -- Join Results via the participant_id stored in registration
+    LEFT JOIN tournament_results tr ON r.participant_id = tr.participant_id
     WHERE r.user_id = $1
     ORDER BY t.tournament_start_date DESC
   `, [userId]);
