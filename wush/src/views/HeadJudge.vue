@@ -103,20 +103,20 @@
 
         <!-- Judge Controls -->
         <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
-          <div class="flex justify-between items-center mb-4">
+          <div class="flex justify-between items-center mb-4 min-h-[32px]">
             <h3 class="font-bold text-gray-800">Scoring Control</h3>
-            <div class="flex items-center space-x-2">
-              <span class="text-sm text-gray-600">Master Switch:</span>
-              <button 
-                @click="toggleAllJudges"
-                class="px-4 py-1 rounded-full text-xs font-bold transition"
-                :class="allJudgesOn ? 'bg-green-600 text-white' : 'bg-red-500 text-white'"
-              >
-                {{ allJudgesOn ? 'ALL OPEN' : 'ALL CLOSED' }}
-              </button>
-            </div>
+            
+            <!-- MASTER SWITCH -->
+            <button 
+              @click="toggleAllJudges"
+              class="px-4 py-1 rounded-full text-xs font-bold transition shadow-sm"
+              :class="isAnyJudgeOn ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-green-600 text-white hover:bg-green-700'"
+            >
+              {{ isAnyJudgeOn ? 'CLOSE ALL' : 'OPEN ALL' }}
+            </button>
           </div>
 
+          <!-- Dynamic Judge Buttons (Auto-save on click) -->
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             <button 
               v-for="judge in judges" 
@@ -130,20 +130,14 @@
             </button>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
-            <button 
-              @click="saveTournamentDetails" 
-              class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-bold shadow transition flex items-center justify-center"
-            >
-              <span class="mr-2">💾</span> Save Status
-            </button>
+          <div class="grid grid-cols-1">
             <button 
               @click="publishScore" 
-              class="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-lg font-bold shadow transition flex items-center justify-center"
+              class="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-lg font-bold shadow transition flex items-center justify-center text-lg"
               :disabled="!selectedActiveParticipant"
               :class="{'opacity-50 cursor-not-allowed': !selectedActiveParticipant}"
             >
-              <span class="mr-2">📢</span> Publish Score
+              <span class="mr-2">📢</span> Calculate & Publish Score
             </button>
           </div>
         </div>
@@ -197,7 +191,10 @@ const judges = [
   { id: "Judge_B1", name: "Judge B1" },
   { id: "Judge_B2", name: "Judge B2" },
 ];
-const allJudgesOn = ref(false);
+
+const isAnyJudgeOn = computed(() => {
+  return Object.values(judgeStates.value).some(status => status === 1);
+});
 
 // Timer
 const elapsedTime = ref(0);
@@ -214,7 +211,7 @@ const formattedTime = computed(() => {
 const filteredParticipants = computed(() => {
   if (!activeDivision.value) return [];
   return participants.value.filter((p) =>
-    p.divisions.some(d => d.id === activeDivision.value.id) // Match by ID is safer
+    p.divisions.some(d => d.id === activeDivision.value.id)
   );
 });
 
@@ -223,8 +220,8 @@ const fetchAllData = async () => {
   try {
     loading.value = true;
     const [pRes, dRes, adRes, tdRes, tRes] = await Promise.all([
-      axios.get("/participants"), // Fetches active tournament participants
-      axios.get("/divisions", { params: { active_only: true } }), // Fetches relevant divisions
+      axios.get("/participants"), 
+      axios.get("/divisions", { params: { active_only: true } }), 
       axios.get("/divisions/active"),
       axios.get("/tournament-details"),
       axios.get("/tournaments")
@@ -246,10 +243,8 @@ const fetchAllData = async () => {
       judgeStates.value.Judge_A2 = tdRes.data.Judge_A2 || 0;
       judgeStates.value.Judge_B1 = tdRes.data.Judge_B1 || 0;
       judgeStates.value.Judge_B2 = tdRes.data.Judge_B2 || 0;
-      checkAllJudges();
     }
 
-    // Find Active Tournament Title
     const activeT = tRes.data.find(t => t.is_active);
     tournamentTitle.value = activeT ? activeT.tournament_title : '';
 
@@ -261,42 +256,51 @@ const fetchAllData = async () => {
   }
 };
 
-// Actions
-const setActive = (id) => { selectedActiveParticipant.value = id; };
-const setOnDeck = (id) => { selectedOnDeckParticipant.value = id; };
+// Actions (Dynamic Saving)
+const setActive = async (id) => { 
+  selectedActiveParticipant.value = id;
+  await saveTournamentDetails(); 
+};
+
+const setOnDeck = async (id) => { 
+  selectedOnDeckParticipant.value = id;
+  await saveTournamentDetails(); 
+};
 
 const startDivision = async () => {
   if (!selectedDivisionId.value) return;
   try {
     const res = await axios.post("/divisions/set-active", { division_id: selectedDivisionId.value });
     activeDivision.value = res.data;
-    selectedActiveParticipant.value = null; // Reset current skater when division changes
+    selectedActiveParticipant.value = null; 
     selectedOnDeckParticipant.value = null;
     showStartDivisionModal.value = false;
     
-    // Broadcast update
     socket.emit("activeDivisionUpdated", res.data);
-    saveTournamentDetails(); // Auto-save the reset IDs
+    await saveTournamentDetails(); 
   } catch (e) { alert("Error changing division"); }
 };
 
-const toggleJudge = (id) => {
+const toggleJudge = async (id) => {
   judgeStates.value[id] = judgeStates.value[id] ? 0 : 1;
-  checkAllJudges();
+  await saveTournamentDetails();
 };
 
-const toggleAllJudges = () => {
-  allJudgesOn.value = !allJudgesOn.value;
-  judges.forEach(j => judgeStates.value[j.id] = allJudgesOn.value ? 1 : 0);
+const toggleAllJudges = async () => {
+  // If ANY are ON, turn all OFF. Otherwise turn all ON.
+  const targetState = isAnyJudgeOn.value ? 0 : 1;
+  judges.forEach(j => judgeStates.value[j.id] = targetState);
+  await saveTournamentDetails();
 };
 
-const checkAllJudges = () => {
-  allJudgesOn.value = judges.every(j => judgeStates.value[j.id] === 1);
+const closeAllJudges = async () => {
+  judges.forEach(j => judgeStates.value[j.id] = 0);
+  await saveTournamentDetails();
 };
 
+// Auto-Save Function
 const saveTournamentDetails = async () => {
   try {
-    // Send requests in parallel
     const requests = [
       axios.post("/tournament-details", { argument: "Active_ID", value: selectedActiveParticipant.value || 0 }),
       axios.post("/tournament-details", { argument: "OnDeck_ID", value: selectedOnDeckParticipant.value || 0 }),
@@ -310,11 +314,8 @@ const saveTournamentDetails = async () => {
       OnDeck_ID: selectedOnDeckParticipant.value,
       ...judgeStates.value
     });
-    
-    // Don't alert on success every time, it's annoying. Just UI feedback if needed.
   } catch (e) {
-    console.error(e);
-    alert("Failed to save status to server.");
+    console.error("Save failed", e);
   }
 };
 
@@ -328,16 +329,13 @@ const publishScore = async () => {
       division_id: activeDivision.value.id,
     });
     alert("Score Published!");
-    // Close judges automatically
-    allJudgesOn.value = false;
-    toggleAllJudges(); // Sets all to 0
-    saveTournamentDetails();
+    await closeAllJudges(); // Lock panel
   } catch (e) {
     alert("Failed to publish score: " + (e.response?.data?.error || e.message));
   }
 };
 
-// Timer
+// Timer logic
 const toggleTimer = () => {
   if (isTimerRunning.value) {
     clearInterval(timerInterval);
@@ -353,24 +351,28 @@ const resetTimer = () => {
   elapsedTime.value = 0;
 };
 
-const logout = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('role');
-  router.push('/login');
-};
-
 // Lifecycle
 onMounted(() => {
   fetchAllData();
   
   socket.on("judgeSubmitted", (data) => {
     judgeStates.value[data.judge] = 0;
-    checkAllJudges();
+  });
+
+  socket.on("tournamentDetailsUpdated", (data) => {
+    // Only update if data changed externally (simple sync)
+    selectedActiveParticipant.value = data.Active_ID || null;
+    selectedOnDeckParticipant.value = data.OnDeck_ID || null;
+    judgeStates.value.Judge_A1 = data.Judge_A1 || 0;
+    judgeStates.value.Judge_A2 = data.Judge_A2 || 0;
+    judgeStates.value.Judge_B1 = data.Judge_B1 || 0;
+    judgeStates.value.Judge_B2 = data.Judge_B2 || 0;
   });
 });
 
 onUnmounted(() => {
   clearInterval(timerInterval);
   socket.off("judgeSubmitted");
+  socket.off("tournamentDetailsUpdated");
 });
 </script>

@@ -1,11 +1,18 @@
 import pool from "./db.js";
 
 export const addParticipantDeduction = async (participant_id, deduction_id, judge, division_id) => {
+  // We use a CTE (Common Table Expression) to Insert and then Select back with the joined data
   const result = await pool.query(
-    `INSERT INTO participant_deductions (participant_id, deduction_id, judge, division_id) 
-     VALUES ($1, $2, $3, $4) 
-     RETURNING *, 
-             (SELECT deduction_code FROM deductions WHERE deduction_id = $2) AS deduction_code`,
+    `WITH inserted AS (
+       INSERT INTO participant_deductions (participant_id, deduction_id, judge, division_id) 
+       VALUES ($1, $2, $3, $4) 
+       RETURNING *
+     )
+     SELECT i.id AS participant_deduction_id, i.*, 
+            d.deduction_code, d.deduction_value, d.deduction_description, 
+            d.deduction_category, d.deduction_criteria
+     FROM inserted i
+     JOIN deductions d ON i.deduction_id = d.deduction_id`,
     [participant_id, deduction_id, judge, division_id]
   );
   return result.rows[0];
