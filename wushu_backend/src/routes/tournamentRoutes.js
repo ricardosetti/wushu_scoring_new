@@ -1,4 +1,5 @@
 import express from "express";
+import multer from 'multer'; // Import multer
 import {
   fetchTournaments,
   createTournament,
@@ -8,14 +9,17 @@ import {
 } from "../controllers/tournamentsController.js";
 
 const router = express.Router();
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
-// Exact matches first
+// Public GET (Allowed by server.js logic)
 router.get("/", fetchTournaments);
-router.post("/", createTournament);
-
-// Parameterized routes
 router.get("/:id", fetchTournamentById);
-router.put("/:id", updateTournamentController);
+
+// Protected Mutations (Auth handled in server.js or here)
+// Add upload.single('tournament_logo') middleware
+router.post("/", upload.single('tournament_logo'), createTournament);
+router.put("/:id", upload.single('tournament_logo'), updateTournamentController);
 router.delete("/:id", deleteTournamentController);
 
 export default router;

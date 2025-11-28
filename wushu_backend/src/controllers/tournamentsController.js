@@ -29,34 +29,23 @@ export const fetchTournamentById = async (req, res) => {
 };
 
 export const createTournament = async (req, res) => {
-  const {
-    tournament_title,
-    tournament_start_date,
-    tournament_end_date,
-    tournament_hours,
-    tournament_contact,
-    tournament_address,
-    tournament_city,
-    tournament_state,
-    tournament_country,
-    tournament_email,
-  } = req.body;
-  if (!tournament_title) {
+  // 1. Get text fields from body
+  const data = req.body;
+
+  // 2. Handle File Upload (if sent)
+  // Multer stores the file in req.file. We convert the buffer to a Base64 string.
+  if (req.file) {
+    const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    data.tournament_logo = base64;
+  }
+
+  if (!data.tournament_title) {
     return res.status(400).json({ error: "Tournament title is required" });
   }
+
   try {
-    const tournament = await addTournament(
-      tournament_title,
-      tournament_start_date,
-      tournament_end_date,
-      tournament_hours,
-      tournament_contact,
-      tournament_address,
-      tournament_city,
-      tournament_state,
-      tournament_country,
-      tournament_email
-    );
+    // Pass the entire data object (including logo and colors) to the model
+    const tournament = await addTournament(data);
     res.status(201).json(tournament);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -65,35 +54,22 @@ export const createTournament = async (req, res) => {
 
 export const updateTournamentController = async (req, res) => {
   const { id } = req.params;
-  const {
-    tournament_title,
-    tournament_start_date,
-    tournament_end_date,
-    tournament_hours,
-    tournament_contact,
-    tournament_address,
-    tournament_city,
-    tournament_state,
-    tournament_country,
-    tournament_email,
-  } = req.body;
-  if (!tournament_title) {
+  const data = req.body;
+
+  // 1. Handle File Upload (if sent)
+  if (req.file) {
+    const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    data.tournament_logo = base64;
+  }
+
+  if (!data.tournament_title) {
     return res.status(400).json({ error: "Tournament title is required" });
   }
+
   try {
-    const tournament = await updateTournament(
-      id,
-      tournament_title,
-      tournament_start_date,
-      tournament_end_date,
-      tournament_hours,
-      tournament_contact,
-      tournament_address,
-      tournament_city,
-      tournament_state,
-      tournament_country,
-      tournament_email
-    );
+    // Pass ID and Data object to model
+    const tournament = await updateTournament(id, data);
+    
     if (!tournament) {
       return res.status(404).json({ error: "Tournament not found" });
     }

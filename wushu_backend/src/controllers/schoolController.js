@@ -1,11 +1,25 @@
 import pool from '../models/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import QRCode from 'qrcode';
+import { toggleTournamentSchool, getSchoolsWithStatus } from '../models/schoolModel.js';
+import dotenv from 'dotenv';
+
+
+dotenv.config();
+
+// Helper to format images for frontend
+const formatImage = (buffer, type = 'jpeg') => {
+  if (!buffer) return null;
+  return `data:image/${type};base64,${Buffer.from(buffer).toString('base64')}`;
+};
 
 export const fetchSchools = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM schools ORDER BY school_name ASC');
-    const schools = result.rows.map(school => ({
+    // Use the new model to get schools with the active status flag
+    const schoolsRaw = await getSchoolsWithStatus();
+    
+    // Format the binary data (Logos/QR) for the frontend
+    const schools = schoolsRaw.map(school => ({
       ...school,
       school_logo: school.school_logo ? `data:image/jpeg;base64,${Buffer.from(school.school_logo).toString('base64')}` : null,
       registration_qr_code: school.registration_qr_code ? `data:image/png;base64,${Buffer.from(school.registration_qr_code).toString('base64')}` : null,
@@ -17,24 +31,34 @@ export const fetchSchools = async (req, res) => {
   }
 };
 
+export const toggleSchoolStatusController = async (req, res) => {
+  const { id } = req.params;
+  const { is_enabled } = req.body;
+
+  try {
+    await toggleTournamentSchool(id, is_enabled);
+    res.json({ message: "Updated successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const createSchool = async (req, res) => {
   const { school_name, school_address, school_contact, school_phone } = req.body;
   const school_logo = req.file ? req.file.buffer : null;
-  if (!school_name) {
-    return res.status(400).json({ error: 'School name is required' });
-  }
+
+  if (!school_name) return res.status(400).json({ error: 'School name is required' });
+
   try {
     const result = await pool.query(
       'INSERT INTO schools (school_name, school_address, school_contact, school_phone, school_logo) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [school_name, school_address || null, school_contact || null, school_phone || null, school_logo]
     );
     const newSchool = result.rows[0];
-    newSchool.school_logo = newSchool.school_logo ? `data:image/jpeg;base64,${Buffer.from(newSchool.school_logo).toString('base64')}` : null;
-    newSchool.registration_qr_code = newSchool.registration_qr_code ? `data:image/png;base64,${Buffer.from(newSchool.registration_qr_code).toString('base64')}` : null;
+    newSchool.school_logo = formatImage(newSchool.school_logo);
     res.status(201).json(newSchool);
   } catch (err) {
-    console.error('Error creating school:', err);
-    res.status(500).json({ error: 'Failed to create school: ' + err.message });
+    res.status(500).json({ error: err.message });
   }
 };
 
@@ -99,43 +123,71 @@ export const fetchSchoolById = async (req, res) => {
 
 export const generateRegistrationLink = async (req, res) => {
   const { schoolId } = req.params;
+  
+  // 1. Get the Frontend URL from ENV, or default to localhost:5173
+  const frontendUrl = process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
 
   try {
-    // Check if the school exists
     const schoolCheck = await pool.query('SELECT id FROM schools WHERE id = $1', [schoolId]);
     if (schoolCheck.rows.length === 0) {
       return res.status(404).json({ error: 'School not found' });
     }
 
     const token = uuidv4();
-    const registrationLink = `${req.protocol}://${req.get('host')}/register?token=${token}`;
-    const qrCodeData = await QRCode.toDataURL(registrationLink, { width: 128, margin: 1 });
+    
+    // 2. Generate Link pointing to FRONTEND
+    const registrationLink = `${frontendUrl}/register?token=${token}&school_id=${schoolId}`;
+    
+    // 3. Generate QR Code
+    const qrCodeData = await QRCode.toDataURL(registrationLink, { width: 300, margin: 2 });
+    const qrBuffer = Buffer.from(qrCodeData.split(',')[1], 'base64');
 
-    // Calculate expiration (e.g., 30 days from now)
+    // 4. Set expiration (e.g., 90 days)
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    expiresAt.setDate(expiresAt.getDate() + 90);
 
     const result = await pool.query(
-      `
-      UPDATE schools
-      SET registration_token = $1, registration_link = $2, registration_qr_code = $3, expires_at = $4, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $5
-      RETURNING *;
-      `,
-      [token, registrationLink, Buffer.from(qrCodeData.split(',')[1], 'base64'), expiresAt, schoolId]
+      `UPDATE schools
+       SET registration_token = $1, registration_link = $2, registration_qr_code = $3, expires_at = $4, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5
+       RETURNING *`,
+      [token, registrationLink, qrBuffer, expiresAt, schoolId]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'School not found' });
-    }
-
     const updatedSchool = result.rows[0];
-    updatedSchool.school_logo = updatedSchool.school_logo ? `data:image/jpeg;base64,${Buffer.from(updatedSchool.school_logo).toString('base64')}` : null;
-    updatedSchool.registration_qr_code = updatedSchool.registration_qr_code ? `data:image/png;base64,${Buffer.from(updatedSchool.registration_qr_code).toString('base64')}` : null;
+    updatedSchool.registration_qr_code = formatImage(updatedSchool.registration_qr_code, 'png');
+    updatedSchool.school_logo = formatImage(updatedSchool.school_logo, 'jpeg');
 
     res.json(updatedSchool);
   } catch (error) {
-    console.error('Error generating registration link:', error);
-    res.status(500).json({ error: 'Failed to generate registration link: ' + error.message });
+    console.error('Error generating link:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const fetchPublicSchools = async (req, res) => {
+  try {
+    const { tournament_id } = req.query;
+    
+    // If no tournament specified, use active
+    let tid = tournament_id;
+    if (!tid) {
+        const activeRes = await pool.query("SELECT tournament_id FROM tournaments WHERE is_active = TRUE LIMIT 1");
+        tid = activeRes.rows[0]?.tournament_id;
+    }
+
+    if (!tid) return res.json([]);
+
+    const result = await pool.query(`
+      SELECT s.id, s.school_name
+      FROM schools s
+      JOIN tournament_schools ts ON s.id = ts.school_id
+      WHERE ts.tournament_id = $1
+      ORDER BY s.school_name ASC
+    `, [tid]);
+
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

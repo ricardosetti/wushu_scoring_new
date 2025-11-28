@@ -1,182 +1,153 @@
 <template>
   <div class="container mx-auto p-4">
-    <h2 class="text-xl font-bold mb-4">Division Management</h2>
-    <button
-      @click="openAddForm"
-      class="bg-green-500 text-white px-4 py-2 rounded mb-4 hover:bg-green-600"
-    >
-      Add New Division
-    </button>
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold">Division Management</h2>
+      <button
+        @click="openAddForm"
+        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+      >
+        + Add Global Division
+      </button>
+    </div>
 
-    <!-- Modal for Add/Edit Division -->
+    <div class="bg-blue-50 p-3 rounded border border-blue-200 mb-6 text-sm text-blue-800">
+      <p><strong>Note:</strong> Divisions are global. Use the checkboxes below to enable/disable them for the <strong>Currently Active Tournament</strong>.</p>
+    </div>
+
+    <div v-if="divisions.length" class="bg-white shadow rounded-lg overflow-hidden">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Active?</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Division Name</th>
+            <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+          <tr v-for="division in divisions" :key="division.id" class="hover:bg-gray-50">
+            <td class="px-6 py-4">
+              <label class="inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  class="form-checkbox h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
+                  :checked="activeDivisionIds.includes(division.id)"
+                  @change="toggleStatus(division, $event.target.checked)"
+                >
+                <span class="ml-2 text-sm text-gray-600">
+                  {{ activeDivisionIds.includes(division.id) ? 'Enabled' : 'Disabled' }}
+                </span>
+              </label>
+            </td>
+            
+            <td class="px-6 py-4 font-medium text-gray-900">
+              {{ division.division_name }}
+            </td>
+            
+            <td class="px-6 py-4 text-right space-x-2">
+              <button @click="editDivision(division)" class="text-indigo-600 hover:text-indigo-900 text-sm font-bold">Edit Name</button>
+              <button @click="deleteDivision(division.id)" class="text-red-500 hover:text-red-700 text-sm font-bold">Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div v-else class="text-center py-10 text-gray-500">No divisions found.</div>
+
     <div v-if="showAddForm" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-        <h3 class="text-lg font-bold mb-4">{{ editDivisionId ? 'Edit Division' : 'Add Division' }}</h3>
+        <h3 class="text-lg font-bold mb-4">{{ editDivisionId ? 'Edit Division' : 'Add Global Division' }}</h3>
         <form @submit.prevent="handleSubmit">
-          <div class="mb-2">
-            <label class="block">Division Name *</label>
-            <input v-model="newDivision.division_name" required class="border p-2 w-full rounded" />
-            <div v-if="errorMessage && !newDivision.division_name" class="text-red-500 text-sm mt-1">
-              Division name is required.
-            </div>
+          <div class="mb-4">
+            <label class="block text-sm font-bold mb-1">Division Name *</label>
+            <input v-model="newDivision.division_name" required class="border p-2 w-full rounded" placeholder="e.g. Northern Fist" />
           </div>
-          <div class="mt-4 flex justify-end">
-            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-              {{ editDivisionId ? 'Update' : 'Save' }}
-            </button>
-            <button @click="cancelForm" class="ml-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
-              Cancel
-            </button>
+          <div class="flex justify-end space-x-2">
+            <button @click="cancelForm" type="button" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Save</button>
           </div>
-          <div v-if="errorMessage && newDivision.division_name" class="mt-2 text-red-500">{{ errorMessage }}</div>
         </form>
       </div>
     </div>
-
-    <!-- Division List -->
-    <div v-if="divisions.length">
-      <h3 class="text-lg font-bold mb-2">Divisions</h3>
-      <div v-for="division in divisions" :key="division.id" class="border p-2 mb-2 flex justify-between items-center">
-        <span>{{ division.division_name }}</span>
-        <div>
-          <button @click="editDivision(division)" class="bg-yellow-500 text-white px-2 py-1 rounded mr-2 hover:bg-yellow-600">
-            Edit
-          </button>
-          <button @click="deleteDivision(division.id)" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">
-            Delete
-          </button>
-        </div>
-      </div>
-    </div>
-    <div v-else>
-      <p>No divisions found.</p>
-    </div>
-
-    <!-- Logout Button -->
-    <button
-      @click="logout"
-      class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mt-4"
-    >
-      Logout
-    </button>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'; // Added onMounted import
-import axios from '../axios'; // Use custom Axios instance
-import { useRouter } from 'vue-router';
+import { ref, onMounted } from 'vue';
+import axios from '../axios';
 
-const router = useRouter();
 const divisions = ref([]);
+const activeDivisionIds = ref([]); // Stores IDs of divisions active for the current tournament
 const showAddForm = ref(false);
-const newDivision = ref({
-  division_name: '',
-});
+const newDivision = ref({ division_name: '' });
 const editDivisionId = ref(null);
-const errorMessage = ref('');
 
-const fetchDivisions = async () => {
+const loadData = async () => {
   try {
-    console.log('Fetching divisions...');
-    const response = await axios.get('/divisions');
-    console.log('Divisions response:', response.data);
-    divisions.value = response.data;
+    // 1. Get ALL global divisions
+    const allRes = await axios.get('/divisions');
+    divisions.value = allRes.data;
+
+    // 2. Get divisions ONLY for the active tournament
+    const activeRes = await axios.get('/divisions', { params: { active_only: true } });
+    activeDivisionIds.value = activeRes.data.map(d => d.id);
   } catch (error) {
-    console.error('Error fetching divisions:', error.response ? error.response.data : error.message);
-    divisions.value = [];
+    console.error('Error loading divisions:', error);
   }
 };
 
-const handleSubmit = () => {
-  errorMessage.value = '';
-  if (!newDivision.value.division_name) {
-    errorMessage.value = 'Division name is required.';
-    return;
-  }
-  console.log('Submitting form, editDivisionId:', editDivisionId.value, 'Data:', newDivision.value);
-  if (editDivisionId.value) {
-    updateDivision();
-  } else {
-    addDivision();
-  }
-};
-
-const addDivision = async () => {
-  console.log('Adding new division, Data:', newDivision.value);
+const toggleStatus = async (division, isChecked) => {
   try {
-    const response = await axios.post('/divisions', newDivision.value);
-    console.log('Add response:', response.data);
-    divisions.value.push(response.data);
-    showAddForm.value = false;
-    resetForm();
-  } catch (error) {
-    console.error('Error adding division:', error.response ? error.response.data : error.message);
-    errorMessage.value = error.response?.data?.error || 'Failed to add division. Please try again.';
-  }
-};
-
-const editDivision = (division) => {
-  editDivisionId.value = division.id;
-  newDivision.value = { ...division };
-  showAddForm.value = true;
-};
-
-const updateDivision = async () => {
-  console.log('Updating division with id:', editDivisionId.value, 'Data:', newDivision.value);
-  try {
-    const response = await axios.put(`/divisions/${editDivisionId.value}`, newDivision.value);
-    console.log('Update response:', response.data);
-    const index = divisions.value.findIndex(d => d.id === editDivisionId.value);
-    if (index !== -1) {
-      divisions.value[index] = response.data;
+    // Optimistic update
+    if (isChecked) {
+      activeDivisionIds.value.push(division.id);
+    } else {
+      activeDivisionIds.value = activeDivisionIds.value.filter(id => id !== division.id);
     }
-    showAddForm.value = false;
-    resetForm();
+
+    await axios.post(`/divisions/${division.id}/toggle-status`, { is_enabled: isChecked });
   } catch (error) {
-    console.error('Error updating division:', error.response ? error.response.data : error.message);
-    errorMessage.value = error.response?.data?.error || 'Failed to update division. Please try again.';
+    alert("Failed to update status");
+    loadData(); // Revert on error
   }
+};
+
+const handleSubmit = async () => {
+  try {
+    if (editDivisionId.value) {
+      await axios.put(`/divisions/${editDivisionId.value}`, newDivision.value);
+    } else {
+      await axios.post('/divisions', newDivision.value);
+    }
+    closeForm();
+    loadData();
+  } catch (error) {
+    alert("Error saving division");
+  }
+};
+
+const editDivision = (d) => {
+  editDivisionId.value = d.id;
+  newDivision.value = { ...d };
+  showAddForm.value = true;
 };
 
 const deleteDivision = async (id) => {
-  if (confirm('Are you sure you want to delete this division?')) {
+  if(confirm("Delete this division globally? This cannot be undone.")) {
     try {
       await axios.delete(`/divisions/${id}`);
-      divisions.value = divisions.value.filter(d => d.id !== id);
-    } catch (error) {
-      console.error('Error deleting division:', error.response ? error.response.data : error.message);
-    }
+      loadData();
+    } catch (e) { alert("Error deleting"); }
   }
 };
 
-const resetForm = () => {
-  newDivision.value = { division_name: '' };
-  editDivisionId.value = null;
-  errorMessage.value = '';
-};
-
 const openAddForm = () => {
+  editDivisionId.value = null;
+  newDivision.value = { division_name: '' };
   showAddForm.value = true;
-  resetForm();
 };
 
-const cancelForm = () => {
-  showAddForm.value = false;
-  resetForm();
-};
+const closeForm = () => showAddForm.value = false;
+const cancelForm = closeForm;
 
-const logout = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('role');
-  router.push('/login');
-};
-
-onMounted(() => {
-  fetchDivisions();
-});
+onMounted(loadData);
 </script>
-
-<style scoped>
-/* No additional styles needed for now */
-</style>

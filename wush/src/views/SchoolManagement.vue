@@ -1,272 +1,299 @@
 <template>
   <div class="container mx-auto p-4">
-    <h2 class="text-xl font-bold mb-4">School Management</h2>
-    <button
-      @click="openAddForm"
-      class="bg-green-500 text-white px-4 py-2 rounded mb-4 hover:bg-green-600"
-    >
-      Add New School
-    </button>
-
-    <!-- Add/Edit School Form -->
-    <div v-if="showAddForm" class="mb-4 p-4 border rounded">
-      <h3 class="text-lg font-bold mb-2">{{ editSchoolId ? 'Edit School' : 'Add School' }}</h3>
-      <!-- Display Logo -->
-      <div v-if="getLogoPreview" class="mb-4">
-        <img :src="getLogoPreview" alt="School Logo" class="w-12 h-12 object-cover rounded" />
-      </div>
-      <div v-else-if="editSchoolId && schools.find(s => s.id === editSchoolId)?.school_logo" class="mb-4 text-sm text-gray-600">
-        Existing Logo: {{ newSchool.school_name }}_logo.jpg
-      </div>
-      <form @submit.prevent="handleSubmit" enctype="multipart/form-data">
-        <div class="mb-2">
-          <label class="block">School Name *</label>
-          <input v-model="newSchool.school_name" required class="border p-2 w-full" />
-        </div>
-        <div class="mb-2">
-          <label class="block">Address</label>
-          <input v-model="newSchool.school_address" class="border p-2 w-full" />
-        </div>
-        <div class="mb-2">
-          <label class="block">Contact</label>
-          <input v-model="newSchool.school_contact" class="border p-2 w-full" />
-        </div>
-        <div class="mb-2">
-          <label class="block">Phone</label>
-          <input v-model="newSchool.school_phone" class="border p-2 w-full" />
-        </div>
-        <div class="mb-2">
-          <label class="block">Logo (JPG)</label>
-          <input type="file" accept="image/jpeg" @change="handleLogoUpload" class="border p-2 w-full" />
-        </div>
-        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-          {{ editSchoolId ? 'Update' : 'Save' }}
-        </button>
-        <button @click="cancelForm" class="ml-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
-          Cancel
-        </button>
-      </form>
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold text-gray-800">School Management</h1>
+      <button 
+        @click="openAddForm" 
+        class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded shadow transition"
+      >
+        + Add School
+      </button>
     </div>
 
-    <!-- School List -->
-    <div v-if="schools.length">
-      <h3 class="text-lg font-bold mb-2">Schools</h3>
-      <div v-for="school in schools" :key="school.id" class="border p-4 mb-4 rounded-lg shadow-sm bg-white">
-        <div class="flex justify-between items-center">
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 shadow-sm">
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <p class="text-sm text-blue-700">
+            <strong>Tournament Filter:</strong> Use the checkbox on each card to Enable/Disable a school for the <span class="font-bold underline">Active Tournament</span>. Only enabled schools can use their QR codes.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="schools.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div 
+        v-for="school in schools" 
+        :key="school.id" 
+        class="bg-white rounded-lg shadow-md p-5 flex flex-col justify-between transition-all duration-200 border-2"
+        :class="school.is_active_in_tournament ? 'border-green-500 opacity-100' : 'border-gray-100 opacity-75 bg-gray-50'"
+      >
+        <div>
+          <div class="flex justify-between items-start mb-4">
+            <div class="flex items-center space-x-3">
+              <img 
+                v-if="school.school_logo" 
+                :src="school.school_logo" 
+                alt="Logo" 
+                class="h-12 w-12 rounded-full object-cover border border-gray-200"
+              />
+              <div v-else class="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-xl border border-gray-300">
+                {{ school.school_name.charAt(0) }}
+              </div>
+            </div>
+            
+            <div class="flex flex-col items-end">
+              <label class="inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  class="form-checkbox h-6 w-6 text-green-600 rounded focus:ring-green-500 border-gray-300 transition duration-150 ease-in-out"
+                  :checked="school.is_active_in_tournament"
+                  @change="toggleStatus(school, $event.target.checked)"
+                >
+              </label>
+              <span class="text-[10px] font-bold uppercase mt-1" :class="school.is_active_in_tournament ? 'text-green-600' : 'text-gray-400'">
+                {{ school.is_active_in_tournament ? 'Active' : 'Inactive' }}
+              </span>
+            </div>
+          </div>
+
           <div>
-            <h3 class="font-semibold">{{ school.school_name }}</h3>
-            <p class="text-gray-600 text-sm">{{ school.school_address }}</p>
-          </div>
-          <div class="flex gap-2">
-            <button @click="editSchool(school)" class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600">
-              Edit
-            </button>
-            <button @click="deleteSchool(school.id)" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">
-              Delete
-            </button>
-            <button @click="generateLink(school)" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
-              Generate Link
-            </button>
+            <h2 class="text-xl font-bold text-gray-900 leading-tight mb-1">{{ school.school_name }}</h2>
+            <p class="text-sm text-gray-500 font-medium">{{ school.school_contact || 'No Contact Info' }}</p>
+            
+            <div class="mt-3 space-y-1">
+              <p class="text-sm text-gray-600 flex items-center">
+                <span class="w-4 h-4 mr-2 text-gray-400">📞</span> {{ school.school_phone || 'N/A' }}
+              </p>
+              <p class="text-sm text-gray-600 flex items-center truncate" title="Address">
+                <span class="w-4 h-4 mr-2 text-gray-400">📍</span> {{ school.school_address || 'N/A' }}
+              </p>
+            </div>
           </div>
         </div>
 
-        <div v-if="school.error" class="mt-3 text-red-500 text-sm">
-          {{ school.error }}
-        </div>
-        <div v-if="school.registration_link" class="mt-3 p-3 bg-gray-50 rounded">
-          <p class="text-sm font-medium">Registration Link:</p>
-          <input class="border p-2 w-full rounded text-sm bg-white" :value="school.registration_link" readonly @click="$event.target.select()" />
-          <div class="flex justify-center mt-3">
-            <img v-if="school.qr_code_data_url" :src="school.qr_code_data_url" alt="QR Code" class="w-100 h-200" />
+        <div class="flex justify-between items-center pt-4 border-t border-gray-100 mt-4">
+          <div class="flex space-x-3">
+            <button @click="editSchool(school)" class="text-gray-600 hover:text-blue-600 text-sm font-medium transition">Edit</button>
+            <button @click="deleteSchool(school.id)" class="text-gray-400 hover:text-red-600 text-sm font-medium transition">Delete</button>
           </div>
+          
+          <button 
+            v-if="school.is_active_in_tournament"
+            @click="openInviteModal(school)" 
+            class="flex items-center space-x-1 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-full text-sm font-medium hover:bg-blue-100 hover:border-blue-300 transition shadow-sm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Invite</span>
+          </button>
+          <span v-else class="text-xs text-gray-400 italic py-1.5 px-2">Disabled for Event</span>
         </div>
       </div>
     </div>
+    
+    <div v-else class="text-center py-12 bg-white rounded-lg shadow">
+      <p class="text-gray-500 text-lg">No schools found.</p>
+      <button @click="openAddForm" class="mt-2 text-blue-600 hover:underline">Create your first school</button>
+    </div>
 
-    <!-- Logout Button -->
-    <button @click="logout" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mt-4">
-      Logout
-    </button>
+    <div v-if="showInviteModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 text-center transform transition-all scale-100">
+        <h3 class="text-xl font-bold text-gray-900 mb-2">Registration Invite</h3>
+        <p class="text-gray-500 mb-6 text-sm">Scan to register students for <br><span class="font-bold text-gray-800">{{ currentSchool.school_name }}</span></p>
+        
+        <div class="flex justify-center mb-6">
+          <div v-if="currentSchool.registration_qr_code" class="border-4 border-white shadow-lg rounded-lg p-2 bg-white">
+            <img :src="currentSchool.registration_qr_code" alt="School QR Code" class="w-48 h-48" />
+          </div>
+          <div v-else class="w-48 h-48 bg-gray-100 flex items-center justify-center rounded text-gray-400 animate-pulse">
+            Generating...
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 p-3 rounded-lg mb-6 text-left border border-gray-200">
+          <label class="text-xs text-gray-500 font-bold uppercase tracking-wide mb-1 block">Direct Link</label>
+          <div class="flex">
+            <input readonly :value="currentSchool.registration_link" class="text-sm bg-white border border-gray-300 rounded-l p-2 w-full text-gray-700 truncate focus:outline-none" />
+            <button @click="copyLink" class="bg-blue-600 text-white px-3 rounded-r text-sm font-bold hover:bg-blue-700">Copy</button>
+          </div>
+        </div>
+        
+        <button @click="showInviteModal = false" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-8 rounded-lg transition">Close</button>
+      </div>
+    </div>
+
+    <div v-if="showAddForm" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+          <h3 class="text-xl font-bold text-gray-800">{{ editSchoolId ? 'Edit School' : 'Add New School' }}</h3>
+          <button @click="cancelForm" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+        
+        <form @submit.prevent="handleSubmit">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-1">School Name *</label>
+              <input v-model="newSchool.school_name" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-1">Contact Person</label>
+              <input v-model="newSchool.school_contact" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-1">Phone</label>
+              <input v-model="newSchool.school_phone" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-1">Address</label>
+              <textarea v-model="newSchool.school_address" rows="3" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-1">Logo (JPG)</label>
+              <input type="file" accept="image/jpeg" @change="handleLogoUpload" class="w-full border border-gray-300 rounded-lg p-2 text-sm" />
+            </div>
+          </div>
+          
+          <div class="mt-6 flex justify-end space-x-3 pt-4 border-t">
+            <button type="button" @click="cancelForm" class="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium">Cancel</button>
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow">{{ editSchoolId ? 'Save Changes' : 'Create School' }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted } from 'vue';
 import axios from '../axios';
-import { useRouter } from 'vue-router';
 
-const router = useRouter();
 const schools = ref([]);
 const showAddForm = ref(false);
+const showInviteModal = ref(false);
+const currentSchool = ref({});
+const editSchoolId = ref(null);
+
 const newSchool = ref({
   school_name: '',
   school_address: '',
   school_contact: '',
   school_phone: '',
-  school_logo: null,
+  school_logo: null
 });
-const editSchoolId = ref(null);
-const logoPreview = ref(null);
 
-const getLogoPreview = computed(() => logoPreview.value || null);
-
+// Fetch schools from backend (Backend now returns is_active_in_tournament flag)
 const fetchSchools = async () => {
   try {
     const response = await axios.get('/schools');
-    schools.value = response.data.map(school => ({
-      ...school,
-      registration_link: school.registration_token
-        ? `${window.location.origin}/register?token=${school.registration_token}`
-        : school.registration_link,
-      qr_code_data_url: school.registration_qr_code,
-      error: null,
-    }));
+    schools.value = response.data;
   } catch (error) {
-    console.error('Error fetching schools:', error.response ? error.response.data : error.message);
-    schools.value = [];
+    console.error('Error fetching schools:', error);
   }
 };
 
-const generateLink = async (school) => {
+// Handle the checkbox toggle
+const toggleStatus = async (school, isChecked) => {
+  // 1. Optimistic UI Update (make it feel fast)
+  const originalState = school.is_active_in_tournament;
+  school.is_active_in_tournament = isChecked;
+
   try {
-    const response = await axios.post(`/schools/${school.id}/generate-token`);
-    const updatedSchool = response.data;
-    school.registration_token = updatedSchool.registration_token;
-    school.expires_at = updatedSchool.expires_at;
-    school.registration_link = `${window.location.origin}/register?token=${updatedSchool.registration_token}`;
-    school.qr_code_data_url = updatedSchool.registration_qr_code;
-    school.error = null;
+    // 2. Call Backend
+    await axios.post(`/schools/${school.id}/toggle-status`, { is_enabled: isChecked });
   } catch (error) {
-    const errorMessage = error.response?.data?.error || 'Failed to generate registration link';
-    school.error = errorMessage;
-    console.error('Error generating registration link:', errorMessage);
+    // 3. Revert on Error
+    alert("Failed to update school status.");
+    school.is_active_in_tournament = originalState;
+  }
+};
+
+// --- Existing Logic ---
+
+const openInviteModal = async (school) => {
+  currentSchool.value = school;
+  showInviteModal.value = true;
+  if (!school.registration_qr_code || !school.registration_link) {
+    try {
+      const response = await axios.post(`/schools/${school.id}/generate-token`);
+      // Update the specific school in the list with new token data
+      const index = schools.value.findIndex(s => s.id === school.id);
+      if (index !== -1) {
+        schools.value[index] = { ...schools.value[index], ...response.data };
+        currentSchool.value = schools.value[index];
+      }
+    } catch (error) {
+      console.error("Failed to generate token", error);
+    }
+  }
+};
+
+const copyLink = () => {
+  if (currentSchool.value.registration_link) {
+    navigator.clipboard.writeText(currentSchool.value.registration_link);
+    alert("Link copied to clipboard!");
   }
 };
 
 const handleLogoUpload = (event) => {
   const file = event.target.files[0];
-  if (file && file.type === 'image/jpeg') {
-    newSchool.value.school_logo = file;
-    logoPreview.value = URL.createObjectURL(file);
-  } else {
-    newSchool.value.school_logo = editSchoolId.value ? schools.value.find(s => s.id === editSchoolId.value)?.school_logo || null : null;
-    logoPreview.value = newSchool.value.school_logo;
-    console.warn('Please upload a valid JPEG file.');
-  }
+  if (file) newSchool.value.school_logo = file;
 };
 
-const handleSubmit = () => {
-  if (editSchoolId.value) updateSchool();
-  else addSchool();
-};
-
-const addSchool = async () => {
-  const formData = new FormData();
-  formData.append('school_name', newSchool.value.school_name);
-  formData.append('school_address', newSchool.value.school_address);
-  formData.append('school_contact', newSchool.value.school_contact);
-  formData.append('school_phone', newSchool.value.school_phone);
-  if (newSchool.value.school_logo?.type) formData.append('school_logo', newSchool.value.school_logo);
-
-  try {
-    const response = await axios.post('/schools', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    schools.value.push({
-      ...response.data,
-      registration_link: null,
-      qr_code_data_url: null,
-      error: null,
-    });
-    resetForm();
-  } catch (error) {
-    console.error('Error adding school:', error.response ? error.response.data : error.message);
-  }
+const openAddForm = () => {
+  editSchoolId.value = null;
+  newSchool.value = { school_name: '', school_address: '', school_contact: '', school_phone: '', school_logo: null };
+  showAddForm.value = true;
 };
 
 const editSchool = (school) => {
   editSchoolId.value = school.id;
-  newSchool.value = { ...school };
+  newSchool.value = { ...school, school_logo: null }; // Reset file input
   showAddForm.value = true;
-  logoPreview.value = school.school_logo;
-};
-
-const updateSchool = async () => {
-  const formData = new FormData();
-  formData.append('school_name', newSchool.value.school_name);
-  formData.append('school_address', newSchool.value.school_address);
-  formData.append('school_contact', newSchool.value.school_contact);
-  formData.append('school_phone', newSchool.value.school_phone);
-  if (newSchool.value.school_logo?.type) formData.append('school_logo', newSchool.value.school_logo);
-
-  try {
-    const response = await axios.put(`/schools/${editSchoolId.value}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    const index = schools.value.findIndex(s => s.id === editSchoolId.value);
-    if (index !== -1) {
-      schools.value[index] = {
-        ...response.data,
-        registration_link: schools.value[index].registration_link,
-        qr_code_data_url: schools.value[index].qr_code_data_url,
-        error: null,
-      };
-    }
-    resetForm();
-  } catch (error) {
-    console.error('Error updating school:', error.response ? error.response.data : error.message);
-  }
-};
-
-const deleteSchool = async (id) => {
-  if (confirm('Are you sure you want to delete this school?')) {
-    try {
-      await axios.delete(`/schools/${id}`);
-      schools.value = schools.value.filter(s => s.id !== id);
-    } catch (error) {
-      console.error('Error deleting school:', error.response ? error.response.data : error.message);
-    }
-  }
-};
-
-const resetForm = () => {
-  newSchool.value = { school_name: '', school_address: '', school_contact: '', school_phone: '', school_logo: null };
-  editSchoolId.value = null;
-  if (logoPreview.value?.startsWith?.('blob:')) URL.revokeObjectURL(logoPreview.value);
-  logoPreview.value = null;
-  showAddForm.value = false;
-};
-
-const openAddForm = () => {
-  showAddForm.value = true;
-  resetForm();
 };
 
 const cancelForm = () => {
   showAddForm.value = false;
-  resetForm();
 };
 
-const logout = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('role');
-  router.push('/login');
+const handleSubmit = async () => {
+  const formData = new FormData();
+  formData.append('school_name', newSchool.value.school_name);
+  formData.append('school_address', newSchool.value.school_address || '');
+  formData.append('school_contact', newSchool.value.school_contact || '');
+  formData.append('school_phone', newSchool.value.school_phone || '');
+  if (newSchool.value.school_logo) {
+    formData.append('school_logo', newSchool.value.school_logo);
+  }
+
+  try {
+    if (editSchoolId.value) {
+      await axios.put(`/schools/${editSchoolId.value}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+    } else {
+      await axios.post('/schools', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+    }
+    await fetchSchools();
+    showAddForm.value = false;
+  } catch (error) {
+    alert("Error saving school");
+    console.error(error);
+  }
 };
 
-onMounted(() => {
-  fetchSchools();
-});
+const deleteSchool = async (id) => {
+  if(confirm("Are you sure? This deletes the school permanently.")) {
+    try {
+      await axios.delete(`/schools/${id}`);
+      fetchSchools();
+    } catch (e) { alert("Error deleting school"); }
+  }
+};
 
-onBeforeUnmount(() => {
-  if (logoPreview.value?.startsWith?.('blob:')) URL.revokeObjectURL(logoPreview.value);
-});
+onMounted(fetchSchools);
 </script>
-
-<style scoped>
-img {
-  width: 50px;
-  height: 50px;
-  object-fit: cover;
-  border-radius: 4px;
-}
-</style>

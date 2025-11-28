@@ -1,54 +1,7 @@
 import pool from "./db.js";
 
-export const getAllParticipants = async () => {
-  try {
-    const result = await pool.query("SELECT * FROM participants ORDER BY last_name ASC, first_name ASC");
-    return result.rows;
-  } catch (err) {
-    throw new Error(err.message);
-  }
-};
-
-export const addParticipant = async (
-  first_name,
-  middle_name,
-  last_name,
-  school_id,
-  birthdate,
-  height_feet,
-  height_inches,
-  weight,
-  gender,
-  phone,
-  emergency_contact_name,
-  emergency_contact_phone,
-  street,
-  city,
-  state,
-  country,
-  zip_code,
-  participant_rank
-) => {
-  try {
-    const result = await pool.query(`
-      INSERT INTO participants (
-        first_name, middle_name, last_name, school_id, birthdate, height_feet, height_inches,
-        weight, gender, phone, emergency_contact_name, emergency_contact_phone, street,
-        city, state, country, zip_code, participant_rank
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-      RETURNING *,
-             (SELECT school_name FROM schools s WHERE s.id = school_id) AS school_name
-    `, [
-      first_name, middle_name, last_name, school_id, birthdate, height_feet, height_inches,
-      weight, gender, phone, emergency_contact_name, emergency_contact_phone, street,
-      city, state, country, zip_code, participant_rank
-    ]);
-    return result.rows[0];
-  } catch (err) {
-    throw new Error(err.message);
-  }
-};
-
+// Fetch ONLY participants from the currently ACTIVE tournament
+// This prevents "zombie" data from previous tournaments appearing in the Head Judge list
 export const getParticipants = async () => {
   try {
     const result = await pool.query(`
@@ -67,7 +20,9 @@ export const getParticipants = async () => {
                '{}'
              ) AS divisions
       FROM participants p
+      JOIN tournaments t ON p.tournament_id = t.tournament_id 
       LEFT JOIN schools s ON p.school_id = s.id
+      WHERE t.is_active = TRUE
       GROUP BY p.id, s.school_name
       ORDER BY p.last_name, p.first_name
     `);
@@ -77,6 +32,7 @@ export const getParticipants = async () => {
   }
 };
 
+// Fetch a specific participant by ID
 export const getParticipantById = async (id) => {
   try {
     const result = await pool.query(`
@@ -105,26 +61,46 @@ export const getParticipantById = async (id) => {
   }
 };
 
+// Add a new participant (Manually via Admin Panel)
+// Automatically links them to the currently ACTIVE tournament
+export const addParticipant = async (
+  first_name, middle_name, last_name, school_id, birthdate, height_feet, height_inches,
+  weight, gender, phone, emergency_contact_name, emergency_contact_phone, street,
+  city, state, country, zip_code, participant_rank
+) => {
+  try {
+    // 1. Find Active Tournament ID
+    const tourneyResult = await pool.query("SELECT tournament_id FROM tournaments WHERE is_active = TRUE LIMIT 1");
+    // Default to Tournament 1 (Legacy) if no tournament is marked active
+    const activeTournamentId = tourneyResult.rows[0]?.tournament_id || 1; 
+
+    // 2. Insert Participant linked to that tournament
+    const result = await pool.query(`
+      INSERT INTO participants (
+        tournament_id, first_name, middle_name, last_name, school_id, birthdate, 
+        height_feet, height_inches, weight, gender, phone, 
+        emergency_contact_name, emergency_contact_phone, street,
+        city, state, country, zip_code, participant_rank
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+      RETURNING *,
+             (SELECT school_name FROM schools s WHERE s.id = school_id) AS school_name
+    `, [
+      activeTournamentId,
+      first_name, middle_name, last_name, school_id, birthdate, height_feet, height_inches,
+      weight, gender, phone, emergency_contact_name, emergency_contact_phone, street,
+      city, state, country, zip_code, participant_rank
+    ]);
+    return result.rows[0];
+  } catch (err) {
+    throw new Error(err.message);
+  }
+};
+
 export const updateParticipant = async (
-  id,
-  first_name,
-  middle_name,
-  last_name,
-  school_id,
-  birthdate,
-  height_feet,
-  height_inches,
-  weight,
-  gender,
-  phone,
-  emergency_contact_name,
-  emergency_contact_phone,
-  street,
-  city,
-  state,
-  country,
-  zip_code,
-  participant_rank
+  id, first_name, middle_name, last_name, school_id, birthdate,
+  height_feet, height_inches, weight, gender, phone,
+  emergency_contact_name, emergency_contact_phone, street,
+  city, state, country, zip_code, participant_rank
 ) => {
   try {
     const result = await pool.query(`
@@ -159,9 +135,12 @@ export const deleteParticipant = async (id) => {
 
 export const addParticipantDivision = async (participant_id, division_id) => {
   try {
+    // We retrieve the tournament_id from the participant to ensure consistency
     const result = await pool.query(`
-      INSERT INTO tournament_participants (participant_id, division_id)
-      VALUES ($1, $2)
+      INSERT INTO tournament_participants (participant_id, division_id, tournament_id)
+      SELECT $1, $2, tournament_id 
+      FROM participants 
+      WHERE id = $1
       RETURNING *
     `, [participant_id, division_id]);
     return result.rows[0];
@@ -191,6 +170,21 @@ export const getParticipantDivisions = async (participant_id) => {
       JOIN tournament_participants tp ON d.id = tp.division_id
       WHERE tp.participant_id = $1
     `, [participant_id]);
+    return result.rows;
+  } catch (err) {
+    throw new Error(err.message);
+  }
+};
+
+// Fallback function if used elsewhere (Updated to respect active tournament)
+export const getAllParticipants = async () => {
+  try {
+    const result = await pool.query(`
+      SELECT p.* FROM participants p
+      JOIN tournaments t ON p.tournament_id = t.tournament_id
+      WHERE t.is_active = TRUE
+      ORDER BY p.last_name ASC, p.first_name ASC
+    `);
     return result.rows;
   } catch (err) {
     throw new Error(err.message);

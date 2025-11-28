@@ -6,20 +6,28 @@ import {
   deleteSchool,
   fetchSchoolById,
   generateRegistrationLink,
+  toggleSchoolStatusController,
+  fetchPublicSchools // <--- Ensure this is imported
 } from '../controllers/schoolController.js';
 import multer from 'multer';
-import { requireAuth, requireAdminRole } from '../middleware/auth.js'; // Assumed middleware
+
+// CRITICAL FIX: Import the auth middleware so the variables are defined
+import { authenticateToken, authorizeRole } from './auth.js'; 
 
 const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Protected Routes (Admin Only)
-router.get('/', requireAuth, requireAdminRole, fetchSchools);
-router.post('/', requireAuth, requireAdminRole, upload.single('school_logo'), createSchool);
-router.put('/:id', requireAuth, requireAdminRole, upload.single('school_logo'), updateSchool);
-router.delete('/:id', requireAuth, requireAdminRole, deleteSchool);
-router.get('/:id', requireAuth, requireAdminRole, fetchSchoolById);
-router.post('/:schoolId/generate-token', requireAuth, requireAdminRole, generateRegistrationLink);
+router.get('/public', fetchPublicSchools);
+router.get('/', authenticateToken, authorizeRole('admin'), fetchSchools);
+router.post('/', authenticateToken, authorizeRole('admin'), upload.single('school_logo'), createSchool);
+router.put('/:id', authenticateToken, authorizeRole('admin'), upload.single('school_logo'), updateSchool);
+router.delete('/:id', authenticateToken, authorizeRole('admin'), deleteSchool);
+router.get('/:id', authenticateToken, authorizeRole('admin'), fetchSchoolById);
+router.post('/:schoolId/generate-token', authenticateToken, authorizeRole('admin'), generateRegistrationLink);
+
+// NEW ROUTE: Toggle School Status
+router.post('/:id/toggle-status', authenticateToken, authorizeRole('admin'), toggleSchoolStatusController);
 
 export default router;

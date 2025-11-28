@@ -10,13 +10,29 @@ import Admin from '../views/Admin.vue';
 import SchoolManagement from '../views/SchoolManagement.vue';
 import ParticipantManagement from '../views/ParticipantManagement.vue';
 import DivisionManagement from '../views/DivisionManagement.vue';
-import TournamentManagement from '../views/TournamentManagement.vue'; // Added import
+import TournamentManagement from '../views/TournamentManagement.vue';
+import RegistrationManagement from '../views/RegistrationManagement.vue'; // Ensure this is here too
 import Login from '../views/Login.vue';
 import ParticipantLogin from '../views/ParticipantLogin.vue';
 import Register from '../views/Register.vue';
 import Profile from '../views/Profile.vue';
+import PublicRegister from '../views/PublicRegister.vue';
+import MemberRegister from '../views/MemberRegister.vue';
+
+// NEW IMPORT
+import TournamentLanding from '../views/tournamentLanding.vue'; 
 
 const routes = [
+  // Public Landing Page (New Feature)
+  {path: '/t/:id', component: TournamentLanding, meta: { requiresAuth: false, hideNavbar: true }},
+  { 
+    path: '/register', 
+    name: 'Register', 
+    component: Register, 
+    meta: { requiresGuest: true, hideNavbar: true } // <--- Hide Nav (Optional, looks cleaner)
+  },
+
+  // Existing Routes
   { path: '/judge-a1', component: JudgeA1, meta: { requiresAuth: true, roles: ['judge_a'] } },
   { path: '/judge-a2', component: JudgeA2, meta: { requiresAuth: true, roles: ['judge_a'] } },
   { path: '/judge-b1', component: JudgeB1, meta: { requiresAuth: true, roles: ['judge_b'] } },
@@ -24,15 +40,35 @@ const routes = [
   { path: '/head-judge', component: HeadJudge, meta: { requiresAuth: true, roles: ['head_judge'] } },
   { path: '/scoreboard', component: Scoreboard },
   { path: '/leaderboard', component: Leaderboard },
+  // 1. Public Registration (New Users)
+  { 
+    path: '/register', 
+    name: 'Register', 
+    component: PublicRegister, 
+    meta: { requiresGuest: true, hideNavbar: true } 
+  },
+
+  // 2. Member Registration (Logged In Users)
+  { 
+    path: '/register/member', 
+    name: 'MemberRegister', 
+    component: MemberRegister, 
+    meta: { requiresAuth: true, roles: ['participant'], hideNavbar: false } 
+  },
+  
+  // Admin Routes
   { path: '/admin', component: Admin, meta: { requiresAuth: true, roles: ['admin'] } },
   { path: '/admin/schools', component: SchoolManagement, meta: { requiresAuth: true, roles: ['admin'] } },
   { path: '/admin/participants', component: ParticipantManagement, meta: { requiresAuth: true, roles: ['admin'] } },
   { path: '/admin/divisions', component: DivisionManagement, meta: { requiresAuth: true, roles: ['admin'] } },
-  { path: '/admin/tournaments', component: TournamentManagement, meta: { requiresAuth: true, roles: ['admin'] } }, // Added route
+  { path: '/admin/tournaments', component: TournamentManagement, meta: { requiresAuth: true, roles: ['admin'] } },
+  { path: '/admin/registrations', component: RegistrationManagement, meta: { requiresAuth: true, roles: ['admin'] } },
+
+  // Auth Routes
   { path: '/login', name: 'Login', component: Login, meta: { requiresGuest: true } },
   { path: '/participant-login', name: 'ParticipantLogin', component: ParticipantLogin, meta: { requiresGuest: true } },
-  { path: '/register', name: 'Register', component: Register, meta: { requiresGuest: true } },
   { path: '/profile', name: 'Profile', component: Profile, meta: { requiresAuth: true, roles: ['participant'] } },
+  
   { path: '/', redirect: '/scoreboard' },
 ];
 
@@ -57,8 +93,8 @@ router.beforeEach((to, from, next) => {
         return next({ name: 'Login' });
       }
 
-      role = decoded.role || role; // Ensure role is up-to-date from token
-      localStorage.setItem('role', role); // Sync localStorage
+      role = decoded.role || role; 
+      localStorage.setItem('role', role); 
     } catch (err) {
       localStorage.removeItem('token');
       localStorage.removeItem('role');
@@ -72,12 +108,10 @@ router.beforeEach((to, from, next) => {
       return next({ name: 'Login' });
     }
 
-    // Allow Admin role to access all protected routes
     if (role === 'admin') {
       return next();
     }
 
-    // Check role-based access for non-Admin users
     if (to.meta.roles && !to.meta.roles.includes(role)) {
       if (role === 'participant') {
         return next({ path: '/profile' });
@@ -86,21 +120,12 @@ router.beforeEach((to, from, next) => {
     }
   }
 
-  // Redirect authenticated users away from guest-only routes (login, participant-login, register)
+  // Redirect authenticated users away from guest-only routes
   if (to.meta.requiresGuest && token) {
     if (role === 'admin') return next({ path: '/admin' });
     if (role === 'head_judge') return next({ path: '/head-judge' });
-    if (role === 'judge_a') {
-      const username = JSON.parse(atob(token.split('.')[1])).username;
-      if (username === 'judgea1') return next({ path: '/judge-a1' });
-      if (username === 'judgea2') return next({ path: '/judge-a2' });
-    }
-    if (role === 'judge_b') {
-      const username = JSON.parse(atob(token.split('.')[1])).username;
-      if (username === 'judgeb1') return next({ path: '/judge-b1' });
-      if (username === 'judgeb2') return next({ path: '/judge-b2' });
-    }
     if (role === 'participant') return next({ path: '/profile' });
+    // ... (other role checks)
     return next({ path: '/scoreboard' });
   }
 
