@@ -1,7 +1,7 @@
 <template>
   <div class="container mx-auto p-4">
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold text-gray-800">School Management</h1>
+      <h1 class="text-3xl font-bold text-darkgray">School Management</h1>
       <button 
         @click="openAddForm" 
         class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded shadow transition"
@@ -10,6 +10,7 @@
       </button>
     </div>
 
+    <!-- Info Banner -->
     <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 shadow-sm">
       <div class="flex">
         <div class="flex-shrink-0">
@@ -25,6 +26,7 @@
       </div>
     </div>
 
+    <!-- Schools Grid -->
     <div v-if="schools.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div 
         v-for="school in schools" 
@@ -33,6 +35,7 @@
         :class="school.is_active_in_tournament ? 'border-green-500 opacity-100' : 'border-gray-100 opacity-75 bg-gray-50'"
       >
         <div>
+          <!-- Header: Logo + Toggle -->
           <div class="flex justify-between items-start mb-4">
             <div class="flex items-center space-x-3">
               <img 
@@ -46,6 +49,7 @@
               </div>
             </div>
             
+            <!-- ACTIVE TOGGLE SWITCH -->
             <div class="flex flex-col items-end">
               <label class="inline-flex items-center cursor-pointer">
                 <input 
@@ -61,6 +65,7 @@
             </div>
           </div>
 
+          <!-- School Details -->
           <div>
             <h2 class="text-xl font-bold text-gray-900 leading-tight mb-1">{{ school.school_name }}</h2>
             <p class="text-sm text-gray-500 font-medium">{{ school.school_contact || 'No Contact Info' }}</p>
@@ -76,12 +81,14 @@
           </div>
         </div>
 
+        <!-- Actions Footer -->
         <div class="flex justify-between items-center pt-4 border-t border-gray-100 mt-4">
           <div class="flex space-x-3">
             <button @click="editSchool(school)" class="text-gray-600 hover:text-blue-600 text-sm font-medium transition">Edit</button>
             <button @click="deleteSchool(school.id)" class="text-gray-400 hover:text-red-600 text-sm font-medium transition">Delete</button>
           </div>
           
+          <!-- INVITE BUTTON (Only visible if active) -->
           <button 
             v-if="school.is_active_in_tournament"
             @click="openInviteModal(school)" 
@@ -102,12 +109,16 @@
       <button @click="openAddForm" class="mt-2 text-blue-600 hover:underline">Create your first school</button>
     </div>
 
+    <!-- ================= MODALS ================= -->
+
+    <!-- Invite Modal -->
     <div v-if="showInviteModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
       <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 text-center transform transition-all scale-100">
-        <h3 class="text-xl font-bold text-gray-900 mb-2">Registration Invite</h3>
+        <h3 class="text-xl font-bold text-gray-900 mb-1">Registration Invite</h3>
         <p class="text-gray-500 mb-6 text-sm">Scan to register students for <br><span class="font-bold text-gray-800">{{ currentSchool.school_name }}</span></p>
         
-        <div class="flex justify-center mb-6">
+        <!-- QR Code Display -->
+        <div class="flex justify-center mb-4">
           <div v-if="currentSchool.registration_qr_code" class="border-4 border-white shadow-lg rounded-lg p-2 bg-white">
             <img :src="currentSchool.registration_qr_code" alt="School QR Code" class="w-48 h-48" />
           </div>
@@ -115,6 +126,17 @@
             Generating...
           </div>
         </div>
+
+        <!-- REGENERATE BUTTON -->
+        <button 
+          @click="regenerateLink"
+          class="text-blue-600 hover:text-blue-800 text-xs font-bold mb-6 flex items-center justify-center mx-auto hover:underline"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Regenerate New Link
+        </button>
         
         <div class="bg-gray-50 p-3 rounded-lg mb-6 text-left border border-gray-200">
           <label class="text-xs text-gray-500 font-bold uppercase tracking-wide mb-1 block">Direct Link</label>
@@ -128,6 +150,7 @@
       </div>
     </div>
 
+    <!-- Add/Edit School Modal -->
     <div v-if="showAddForm" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
       <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
         <div class="flex justify-between items-center mb-4 border-b pb-2">
@@ -153,7 +176,8 @@
               <label class="block text-sm font-bold text-gray-700 mb-1">Address</label>
               <textarea v-model="newSchool.school_address" rows="3" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
             </div>
-            <div>
+            <!-- Logo Input (Optional) -->
+             <div>
               <label class="block text-sm font-bold text-gray-700 mb-1">Logo (JPG)</label>
               <input type="file" accept="image/jpeg" @change="handleLogoUpload" class="w-full border border-gray-300 rounded-lg p-2 text-sm" />
             </div>
@@ -214,23 +238,38 @@ const toggleStatus = async (school, isChecked) => {
   }
 };
 
-// --- Existing Logic ---
+// --- Invite Logic ---
 
 const openInviteModal = async (school) => {
   currentSchool.value = school;
   showInviteModal.value = true;
+  // Auto generate only if missing. Otherwise show existing.
   if (!school.registration_qr_code || !school.registration_link) {
-    try {
-      const response = await axios.post(`/schools/${school.id}/generate-token`);
-      // Update the specific school in the list with new token data
-      const index = schools.value.findIndex(s => s.id === school.id);
-      if (index !== -1) {
-        schools.value[index] = { ...schools.value[index], ...response.data };
-        currentSchool.value = schools.value[index];
-      }
-    } catch (error) {
-      console.error("Failed to generate token", error);
-    }
+    await callGenerateToken(school);
+  }
+};
+
+// NEW: Explicitly Regenerate Token (Fixes broken links or rotates security)
+const regenerateLink = async () => {
+  if(!confirm("Warning: This will invalidate any previously shared links for this school. Generate new link?")) return;
+  await callGenerateToken(currentSchool.value);
+};
+
+const callGenerateToken = async (school) => {
+  try {
+    const response = await axios.post(`/schools/${school.id}/generate-token`);
+    // Update local data with response
+    const updatedSchool = { ...school, ...response.data };
+    
+    // Update List
+    const index = schools.value.findIndex(s => s.id === school.id);
+    if (index !== -1) schools.value[index] = updatedSchool;
+    
+    // Update Modal
+    currentSchool.value = updatedSchool;
+  } catch (error) {
+    console.error("Failed to generate token", error);
+    alert("Error generating link");
   }
 };
 

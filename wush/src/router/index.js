@@ -73,7 +73,8 @@ const routes = [
 ];
 
 const router = createRouter({
-  history: createWebHistory(),
+  // This automatically grabs the base URL ('/scoring/') from your vite config/build command
+  history: createWebHistory(import.meta.env.BASE_URL), 
   routes,
 });
 
