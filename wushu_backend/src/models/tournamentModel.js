@@ -32,25 +32,31 @@ export const addTournament = async (data) => {
     tournament_hours, tournament_contact, tournament_address,
     tournament_city, tournament_state, tournament_country,
     tournament_email, is_active,
-    color_primary, color_background, details_content, tournament_logo
+    color_primary, color_background, details_content, tournament_logo,
+    judges_config // <--- NEW FIELD
   } = data;
 
   try {
+    // Default config if missing
+    const config = judges_config || { A1: true, A2: true, B1: true, B2: true };
+
     const result = await pool.query(`
       INSERT INTO tournaments (
         tournament_title, tournament_start_date, tournament_end_date,
         tournament_hours, tournament_contact, tournament_address,
         tournament_city, tournament_state, tournament_country,
         tournament_email, is_active,
-        color_primary, color_background, details_content, tournament_logo
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        color_primary, color_background, details_content, tournament_logo,
+        judges_config
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
     `, [
       tournament_title, tournament_start_date || null, tournament_end_date || null,
       tournament_hours || null, tournament_contact || null, tournament_address || null,
       tournament_city || null, tournament_state || null, tournament_country || null,
       tournament_email || null, is_active || false,
-      color_primary || '#1E40AF', color_background || '#F3F4F6', details_content || '', tournament_logo || null
+      color_primary || '#1E40AF', color_background || '#F3F4F6', details_content || '', tournament_logo || null,
+      config
     ]);
     return result.rows[0];
   } catch (err) {
@@ -64,7 +70,8 @@ export const updateTournament = async (id, data) => {
     tournament_hours, tournament_contact, tournament_address,
     tournament_city, tournament_state, tournament_country,
     tournament_email, is_active,
-    color_primary, color_background, details_content, tournament_logo
+    color_primary, color_background, details_content, tournament_logo,
+    judges_config // <--- NEW FIELD
   } = data;
 
   const client = await pool.connect();
@@ -76,8 +83,6 @@ export const updateTournament = async (id, data) => {
        await client.query("UPDATE tournament_details SET value = 0 WHERE argument IN ('Active_ID', 'OnDeck_ID')");
     }
 
-    // Build query dynamically to handle optional logo update
-    // If tournament_logo is undefined (not sent), we keep the old one
     let logoQueryPart = "";
     let params = [
       tournament_title, tournament_start_date || null, tournament_end_date || null,
@@ -85,11 +90,12 @@ export const updateTournament = async (id, data) => {
       tournament_city || null, tournament_state || null, tournament_country || null,
       tournament_email || null, is_active || false,
       color_primary || '#1E40AF', color_background || '#F3F4F6', details_content || '',
+      judges_config || { A1: true, A2: true, B1: true, B2: true }, // Default
       id
     ];
 
     if (tournament_logo !== undefined) {
-      logoQueryPart = ", tournament_logo = $16";
+      logoQueryPart = ", tournament_logo = $17"; // Note: Index increased to 17
       params.push(tournament_logo);
     }
 
@@ -101,9 +107,10 @@ export const updateTournament = async (id, data) => {
         tournament_city = $7, tournament_state = $8, tournament_country = $9,
         tournament_email = $10, is_active = $11, 
         color_primary = $12, color_background = $13, details_content = $14,
+        judges_config = $15,
         updated_at = CURRENT_TIMESTAMP
         ${logoQueryPart}
-      WHERE tournament_id = $15
+      WHERE tournament_id = $16
       RETURNING *
     `, params);
 
@@ -115,7 +122,7 @@ export const updateTournament = async (id, data) => {
   } finally {
     client.release();
   }
-};
+};  
 
 export const deleteTournament = async (id) => {
   try {

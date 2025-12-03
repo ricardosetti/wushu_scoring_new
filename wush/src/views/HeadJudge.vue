@@ -109,17 +109,17 @@
             <!-- MASTER SWITCH -->
             <button 
               @click="toggleAllJudges"
-              class="px-4 py-1 rounded-full text-xs font-bold transition shadow-sm"
+              class="px-4 py-1 rounded-full text-xs font-bold transition shadow-sm w-32"
               :class="isAnyJudgeOn ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-green-600 text-white hover:bg-green-700'"
             >
               {{ isAnyJudgeOn ? 'CLOSE ALL' : 'OPEN ALL' }}
             </button>
           </div>
 
-          <!-- Dynamic Judge Buttons (Auto-save on click) -->
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <!-- Dynamic Judge Buttons (Filtered by Configuration) -->
+          <div v-if="enabledJudges.length > 0" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             <button 
-              v-for="judge in judges" 
+              v-for="judge in enabledJudges" 
               :key="judge.id"
               @click="toggleJudge(judge.id)"
               class="py-3 rounded-lg font-bold text-sm transition border shadow-sm flex flex-col items-center justify-center"
@@ -128,6 +128,9 @@
               <span>{{ judge.name }}</span>
               <span class="text-[10px] mt-1 uppercase">{{ judgeStates[judge.id] ? 'Scoring' : 'Locked' }}</span>
             </button>
+          </div>
+          <div v-else class="text-center py-4 text-gray-500 italic mb-4">
+            No judges enabled for this tournament.
           </div>
 
           <div class="grid grid-cols-1">
@@ -183,17 +186,24 @@ const selectedOnDeckParticipant = ref(null);
 const showStartDivisionModal = ref(false);
 const selectedDivisionId = ref("");
 
-// Judges
-const judgeStates = ref({ Judge_A1: 0, Judge_A2: 0, Judge_B1: 0, Judge_B2: 0 });
-const judges = [
-  { id: "Judge_A1", name: "Judge A1" },
-  { id: "Judge_A2", name: "Judge A2" },
-  { id: "Judge_B1", name: "Judge B1" },
-  { id: "Judge_B2", name: "Judge B2" },
+// Judges Configuration
+const allJudgesList = [
+  { id: "Judge_A1", name: "Judge A1", key: "A1" },
+  { id: "Judge_A2", name: "Judge A2", key: "A2" },
+  { id: "Judge_B1", name: "Judge B1", key: "B1" },
+  { id: "Judge_B2", name: "Judge B2", key: "B2" },
 ];
+const activeJudgesConfig = ref({ A1: true, A2: true, B1: true, B2: true }); // Default all on
+const judgeStates = ref({ Judge_A1: 0, Judge_A2: 0, Judge_B1: 0, Judge_B2: 0 });
 
+// Filter the judges based on Tournament Config
+const enabledJudges = computed(() => {
+  return allJudgesList.filter(j => activeJudgesConfig.value[j.key]);
+});
+
+// Check if any of the ENABLED judges are actively scoring
 const isAnyJudgeOn = computed(() => {
-  return Object.values(judgeStates.value).some(status => status === 1);
+  return enabledJudges.value.some(j => judgeStates.value[j.id] === 1);
 });
 
 // Timer
@@ -235,18 +245,23 @@ const fetchAllData = async () => {
     divisions.value = dRes.data;
     activeDivision.value = adRes.data;
     
+    // Find Active Tournament & Config
+    const activeT = tRes.data.find(t => t.is_active);
+    tournamentTitle.value = activeT ? activeT.tournament_title : '';
+    if (activeT && activeT.judges_config) {
+      activeJudgesConfig.value = activeT.judges_config;
+    }
+
     // Parse Details
     if (tdRes.data) {
       selectedActiveParticipant.value = tdRes.data.Active_ID || null;
       selectedOnDeckParticipant.value = tdRes.data.OnDeck_ID || null;
+      // Load current state
       judgeStates.value.Judge_A1 = tdRes.data.Judge_A1 || 0;
       judgeStates.value.Judge_A2 = tdRes.data.Judge_A2 || 0;
       judgeStates.value.Judge_B1 = tdRes.data.Judge_B1 || 0;
       judgeStates.value.Judge_B2 = tdRes.data.Judge_B2 || 0;
     }
-
-    const activeT = tRes.data.find(t => t.is_active);
-    tournamentTitle.value = activeT ? activeT.tournament_title : '';
 
   } catch (err) {
     console.error(err);
@@ -287,24 +302,26 @@ const toggleJudge = async (id) => {
 };
 
 const toggleAllJudges = async () => {
-  // If ANY are ON, turn all OFF. Otherwise turn all ON.
+  // If ANY are ON, turn them all OFF.
+  // If ALL are OFF, turn them all ON.
   const targetState = isAnyJudgeOn.value ? 0 : 1;
-  judges.forEach(j => judgeStates.value[j.id] = targetState);
+  enabledJudges.value.forEach(j => judgeStates.value[j.id] = targetState);
   await saveTournamentDetails();
 };
 
 const closeAllJudges = async () => {
-  judges.forEach(j => judgeStates.value[j.id] = 0);
+  enabledJudges.value.forEach(j => judgeStates.value[j.id] = 0);
   await saveTournamentDetails();
 };
 
 // Auto-Save Function
 const saveTournamentDetails = async () => {
   try {
+    // Only save arguments for enabled judges + general IDs
     const requests = [
       axios.post("/tournament-details", { argument: "Active_ID", value: selectedActiveParticipant.value || 0 }),
       axios.post("/tournament-details", { argument: "OnDeck_ID", value: selectedOnDeckParticipant.value || 0 }),
-      ...judges.map(j => axios.post("/tournament-details", { argument: j.id, value: judgeStates.value[j.id] }))
+      ...enabledJudges.value.map(j => axios.post("/tournament-details", { argument: j.id, value: judgeStates.value[j.id] }))
     ];
     
     await Promise.all(requests);
