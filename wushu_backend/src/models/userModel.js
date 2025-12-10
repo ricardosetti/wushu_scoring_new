@@ -1,6 +1,6 @@
 import pool from "./db.js";
 
-// Helper to convert empty strings to null (prevents DB errors on Integer/Date columns)
+// Helper to handle empty strings
 const toNull = (val) => (val === '' || val === undefined || val === 'null' ? null : val);
 
 export const getUserByEmail = async (email) => {
@@ -28,13 +28,15 @@ export const createUser = async (userData) => {
       first_name, middle_name, last_name, birthdate, gender,
       height_feet, height_inches, weight, phone,
       emergency_contact_name, emergency_contact_phone,
-      street, city, state, country, zip_code
+      street, city, state, country, zip_code,
+      is_verified, created_at
     ) VALUES (
       $1, $1, $2, $3, 
       $4, $5, $6, $7, $8, 
       $9, $10, $11, $12, 
       $13, $14, 
-      $15, $16, $17, $18, $19
+      $15, $16, $17, $18, $19,
+      FALSE, CURRENT_TIMESTAMP
     )
     RETURNING *`,
     [
@@ -61,8 +63,8 @@ export const updateUser = async (id, data) => {
       first_name = $1, middle_name = $2, last_name = $3, birthdate = $4, gender = $5,
       height_feet = $6, height_inches = $7, weight = $8, phone = $9,
       emergency_contact_name = $10, emergency_contact_phone = $11,
-      street = $12, city = $13, state = $14, country = $15, zip_code = $16,
-      updated_at = CURRENT_TIMESTAMP
+      street = $12, city = $13, state = $14, country = $15, zip_code = $16
+      -- We removed updated_at to ensure compatibility if column missing
     WHERE id = $17
     RETURNING *`,
     [

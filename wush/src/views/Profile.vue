@@ -176,6 +176,7 @@
                <div class="w-1/2"><label class="block text-sm font-bold text-gray-700 mb-1">State</label><input v-model="form.state" :disabled="!isEditing" class="w-full border rounded p-2 bg-white disabled:bg-gray-50 disabled:text-gray-500" /></div>
                <div class="w-1/2"><label class="block text-sm font-bold text-gray-700 mb-1">Zip</label><input v-model="form.zip_code" :disabled="!isEditing" class="w-full border rounded p-2 bg-white disabled:bg-gray-50 disabled:text-gray-500" /></div>
             </div>
+            <div><label class="block text-sm font-bold text-gray-700 mb-1">Country</label><input v-model="form.country" :disabled="!isEditing" class="w-full border rounded p-2 bg-white disabled:bg-gray-50 disabled:text-gray-500" /></div>
           </div>
 
           <div v-if="isEditing" class="mt-8 flex justify-end space-x-3 pt-4 border-t">
@@ -208,22 +209,20 @@ const initials = computed(() => {
 });
 
 const latestRank = computed(() => {
-  if (registrations.value.length > 0) {
-    return registrations.value[0].participant_rank;
-  }
+  if (registrations.value.length > 0) return registrations.value[0].participant_rank;
   return null;
 });
 
 const fetchProfile = async () => {
   try {
     loading.value = true;
+    // FETCH FROM NEW ENDPOINT
     const res = await axios.get('/users/profile');
     user.value = res.data.user;
     registrations.value = res.data.registrations;
     
-    // Initialize edit form with user data
+    // Fill Form
     form.value = { ...user.value };
-    // Format birthdate for input[type="date"]
     if (form.value.birthdate) form.value.birthdate = form.value.birthdate.split('T')[0];
   } catch (e) {
     console.error("Error fetching profile:", e);
@@ -246,7 +245,7 @@ const saveProfile = async () => {
 
 const cancelEdit = () => {
   isEditing.value = false;
-  form.value = { ...user.value }; // Revert form
+  form.value = { ...user.value };
   if (form.value.birthdate) form.value.birthdate = form.value.birthdate.split('T')[0];
 };
 
