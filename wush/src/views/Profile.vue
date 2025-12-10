@@ -16,7 +16,6 @@
               <span class="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
                 Athlete
               </span>
-              <!-- Show Rank from latest registration if available -->
               <span v-if="latestRank" class="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-semibold rounded-full">
                 {{ latestRank }}
               </span>
@@ -80,7 +79,6 @@
           >
             <div class="p-6">
               <div class="flex justify-between items-start">
-                <!-- Left Side: Event Info -->
                 <div>
                   <div class="flex items-center space-x-3">
                     <h3 class="text-xl font-bold text-gray-900">{{ reg.tournament_title }}</h3>
@@ -96,19 +94,14 @@
                   </p>
                 </div>
                 
-                <!-- Right Side: Score OR Status -->
                 <div class="text-right">
-                  <!-- SCENARIO A: Has a Final Score (Competition Finished for User) -->
                   <div v-if="reg.total_score" class="flex flex-col items-end">
                     <div class="text-4xl font-extrabold text-blue-600 leading-none">{{ reg.total_score }}</div>
                     <div class="text-[10px] text-gray-400 uppercase font-bold mt-1 tracking-wide">Final Score</div>
-                    
                     <div v-if="reg.rank" class="mt-2 px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-full border border-yellow-200 shadow-sm">
                       Rank: {{ reg.rank }}
                     </div>
                   </div>
-                  
-                  <!-- SCENARIO B: No Score yet (Pending or Approved) -->
                   <span v-else class="inline-block px-3 py-1 text-xs font-bold rounded-full mb-2" 
                     :class="reg.status === 1 ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-yellow-100 text-yellow-800 border border-yellow-200'">
                     {{ reg.status === 1 ? 'Approved' : 'Pending Approval' }}
@@ -116,9 +109,7 @@
                 </div>
               </div>
               
-              <!-- Footer Actions -->
               <div class="mt-6 pt-4 border-t border-gray-100 flex justify-end items-center space-x-4">
-                 <!-- Link to Scoreboard if user is Approved AND Tournament is Active -->
                  <button 
                    v-if="reg.status === 1 && reg.is_active"
                    @click="$router.push('/scoreboard')" 
@@ -127,7 +118,6 @@
                    <span class="mr-1">📺</span> View Live Board
                  </button>
                  
-                 <!-- Placeholder for future "View Details" -->
                  <span v-else-if="reg.status === 1" class="text-gray-400 text-xs italic">
                    Results Finalized
                  </span>
@@ -158,14 +148,8 @@
                 <option value="O">Other</option>
               </select>
             </div>
-
-            <!-- Biometrics -->
-            <div class="md:col-span-2 border-t pt-4 mt-2"><h4 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Biometrics</h4></div>
-            <div class="flex space-x-4">
-              <div class="w-1/2"><label class="block text-sm font-bold text-gray-700 mb-1">Height (ft)</label><input type="number" v-model="form.height_feet" :disabled="!isEditing" class="w-full border rounded p-2 bg-white disabled:bg-gray-50 disabled:text-gray-500" /></div>
-              <div class="w-1/2"><label class="block text-sm font-bold text-gray-700 mb-1">Height (in)</label><input type="number" v-model="form.height_inches" :disabled="!isEditing" class="w-full border rounded p-2 bg-white disabled:bg-gray-50 disabled:text-gray-500" /></div>
-            </div>
-            <div><label class="block text-sm font-bold text-gray-700 mb-1">Weight (kg)</label><input type="number" step="0.1" v-model="form.weight" :disabled="!isEditing" class="w-full border rounded p-2 bg-white disabled:bg-gray-50 disabled:text-gray-500" /></div>
+            
+            <!-- Removed Biometrics Section (Handled per tournament now) -->
 
             <!-- Contact -->
             <div class="md:col-span-2 border-t pt-4 mt-2"><h4 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Contact Info</h4></div>
@@ -203,9 +187,8 @@ const isEditing = ref(false);
 const form = ref({});
 
 const initials = computed(() => {
-  const f = user.value.first_name ? user.value.first_name[0] : '';
-  const l = user.value.last_name ? user.value.last_name[0] : '';
-  return (f + l).toUpperCase();
+  if (!user.value.first_name || !user.value.last_name) return '??';
+  return (user.value.first_name[0] + user.value.last_name[0]).toUpperCase();
 });
 
 const latestRank = computed(() => {
@@ -216,10 +199,9 @@ const latestRank = computed(() => {
 const fetchProfile = async () => {
   try {
     loading.value = true;
-    // FETCH FROM NEW ENDPOINT
     const res = await axios.get('/users/profile');
     user.value = res.data.user;
-    registrations.value = res.data.registrations;
+    registrations.value = res.data.registrations || [];
     
     // Fill Form
     form.value = { ...user.value };
@@ -258,9 +240,9 @@ const logout = () => {
 const formatDate = (d) => d ? new Date(d).toLocaleDateString() : 'TBD';
 
 const getBorderColor = (reg) => {
-  if (reg.total_score) return 'border-blue-600'; // Scored (Completed)
-  if (reg.status === 1) return 'border-green-500'; // Approved
-  return 'border-yellow-400'; // Pending
+  if (reg.total_score) return 'border-blue-600'; 
+  if (reg.status === 1) return 'border-green-500'; 
+  return 'border-yellow-400'; 
 };
 
 onMounted(fetchProfile);
