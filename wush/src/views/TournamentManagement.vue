@@ -58,7 +58,7 @@
                 </div>
               </td>
 
-              <!-- Public Page Link (FIXED) -->
+              <!-- Public Page Link -->
               <td class="px-6 py-4 text-right whitespace-nowrap">
                 <a 
                   :href="`${baseUrl}t/${tournament.tournament_id}`" 
@@ -128,6 +128,17 @@
               
               <div><label class="block text-sm font-bold text-gray-700 mb-1">Start Date</label><input v-model="form.tournament_start_date" type="date" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" /></div>
               <div><label class="block text-sm font-bold text-gray-700 mb-1">End Date</label><input v-model="form.tournament_end_date" type="date" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" /></div>
+              <div class="md:col-span-2 grid grid-cols-2 gap-6 border-t pt-4 mt-2">
+                <div class="md:col-span-2 text-sm font-bold text-gray-700">Registration Window (When athletes can sign up)</div>
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">Registration Opens</label>
+                <input v-model="form.registration_start_date" type="date" class="w-full border border-gray-300 rounded-lg p-2.5" />
+              </div>
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">Registration Closes</label>
+                <input v-model="form.registration_end_date" type="date" class="w-full border border-gray-300 rounded-lg p-2.5" />
+              </div>
+            </div>
 
               <div><label class="block text-sm font-bold text-gray-700 mb-1">Email Contact</label><input v-model="form.tournament_email" type="email" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" /></div>
               <div><label class="block text-sm font-bold text-gray-700 mb-1">Phone Contact</label><input v-model="form.tournament_contact" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" /></div>
@@ -136,6 +147,31 @@
               <div><label class="block text-sm font-bold text-gray-700 mb-1">City</label><input v-model="form.tournament_city" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" /></div>
               <div><label class="block text-sm font-bold text-gray-700 mb-1">State</label><input v-model="form.tournament_state" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" /></div>
               
+              <!-- JUDGES CONFIGURATION (NEW) -->
+              <div class="md:col-span-2 mt-2 p-4 border rounded-lg bg-gray-50 border-gray-200">
+                <label class="block text-sm font-bold text-gray-800 mb-3">Active Judges Panel</label>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <label class="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-100 transition">
+                    <input v-model="form.judges_config.A1" type="checkbox" class="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                    <span class="text-sm font-medium text-gray-700">Judge A1</span>
+                  </label>
+                  <label class="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-100 transition">
+                    <input v-model="form.judges_config.A2" type="checkbox" class="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                    <span class="text-sm font-medium text-gray-700">Judge A2</span>
+                  </label>
+                  <label class="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-100 transition">
+                    <input v-model="form.judges_config.B1" type="checkbox" class="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                    <span class="text-sm font-medium text-gray-700">Judge B1</span>
+                  </label>
+                  <label class="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-100 transition">
+                    <input v-model="form.judges_config.B2" type="checkbox" class="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                    <span class="text-sm font-medium text-gray-700">Judge B2</span>
+                  </label>
+                </div>
+                <p class="text-xs text-gray-500 mt-2 italic">Unchecked judges will be hidden from the Head Judge panel and Scoreboard calculation.</p>
+              </div>
+
+              <!-- ACTIVE TOGGLE -->
               <div class="md:col-span-2 mt-2 bg-yellow-50 p-4 rounded border border-yellow-200">
                 <label class="flex items-center space-x-3 cursor-pointer">
                   <input v-model="form.is_active" type="checkbox" class="h-5 w-5 text-green-600 rounded border-gray-300 focus:ring-green-500">
@@ -213,7 +249,6 @@ const errorMessage = ref('');
 const activeTab = ref('general');
 const logoPreview = ref(null);
 
-// Grab the base URL (e.g. "/scoring/") from Vite env to ensure links are correct
 const baseUrl = import.meta.env.BASE_URL;
 
 const form = ref({
@@ -231,7 +266,8 @@ const form = ref({
   color_primary: '#1E40AF',
   color_background: '#F3F4F6',
   details_content: '',
-  tournament_logo: null
+  tournament_logo: null,
+  judges_config: { A1: true, A2: true, B1: true, B2: true } // Default state
 });
 
 const fetchTournaments = async () => {
@@ -255,7 +291,6 @@ const setActiveTournament = async (tournament) => {
   if(!confirm(`Set "${tournament.tournament_title}" as the Active Tournament? This will archive all others.`)) return;
   
   try {
-    // Send basic update to toggle active
     await axios.put(`/tournaments/${tournament.tournament_id}`, {
       ...tournament,
       is_active: true
@@ -275,9 +310,12 @@ const handleSubmit = async () => {
   }
 
   const formData = new FormData();
-  // Append all fields to FormData
+  
   for (const key in form.value) {
-    if (form.value[key] !== null && form.value[key] !== undefined) {
+    if (key === 'judges_config') {
+      // Serialize the JSON object for FormData
+      formData.append(key, JSON.stringify(form.value[key]));
+    } else if (form.value[key] !== null && form.value[key] !== undefined) {
       formData.append(key, form.value[key]);
     }
   }
@@ -301,18 +339,25 @@ const handleSubmit = async () => {
 
 const editTournament = (t) => {
   editTournamentId.value = t.tournament_id;
-  logoPreview.value = t.tournament_logo; // Use existing base64/url
+  logoPreview.value = t.tournament_logo; 
   
-  // Clone object
-  form.value = { ...t, tournament_logo: null }; // Reset file input to null, we only send if changed
+  // Clone
+  form.value = { ...t, tournament_logo: null }; 
   
-  // Fix dates
+  // Dates
   if (form.value.tournament_start_date) form.value.tournament_start_date = form.value.tournament_start_date.split('T')[0];
   if (form.value.tournament_end_date) form.value.tournament_end_date = form.value.tournament_end_date.split('T')[0];
+  if (form.value.registration_start_date) form.value.registration_start_date = form.value.registration_start_date.split('T')[0];
+  if (form.value.registration_end_date) form.value.registration_end_date = form.value.registration_end_date.split('T')[0];
   
-  // Defaults for design if missing
+  // Design Defaults
   if (!form.value.color_primary) form.value.color_primary = '#1E40AF';
   if (!form.value.color_background) form.value.color_background = '#F3F4F6';
+
+  // Config Defaults (for legacy records)
+  if (!form.value.judges_config) {
+    form.value.judges_config = { A1: true, A2: true, B1: true, B2: true };
+  }
 
   activeTab.value = 'general';
   showAddForm.value = true;
@@ -368,7 +413,8 @@ const resetForm = () => {
     color_primary: '#1E40AF',
     color_background: '#F3F4F6',
     details_content: '',
-    tournament_logo: null
+    tournament_logo: null,
+    judges_config: { A1: true, A2: true, B1: true, B2: true }
   };
 };
 

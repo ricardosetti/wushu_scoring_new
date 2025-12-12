@@ -11,25 +11,50 @@ import SchoolManagement from '../views/SchoolManagement.vue';
 import ParticipantManagement from '../views/ParticipantManagement.vue';
 import DivisionManagement from '../views/DivisionManagement.vue';
 import TournamentManagement from '../views/TournamentManagement.vue';
-import RegistrationManagement from '../views/RegistrationManagement.vue'; // Ensure this is here too
+import RegistrationManagement from '../views/RegistrationManagement.vue';
 import Login from '../views/Login.vue';
 import ParticipantLogin from '../views/ParticipantLogin.vue';
 import Register from '../views/Register.vue';
 import Profile from '../views/Profile.vue';
+import TournamentLanding from '../views/TournamentLanding.vue'; 
 import PublicRegister from '../views/PublicRegister.vue';
 import MemberRegister from '../views/MemberRegister.vue';
+import UserManagement from '../views/UserManagement.vue'; // <--- Import
 
-// NEW IMPORT
-import TournamentLanding from '../views/tournamentLanding.vue'; 
+// NEW AUTH VIEWS
+import SignUp from '../views/SignUp.vue';
+import ForgotPassword from '../views/ForgotPassword.vue';
+import ResetPassword from '../views/ResetPassword.vue';
+import VerifyEmail from '../views/VerifyEmail.vue';
 
 const routes = [
-  // Public Landing Page (New Feature)
-  {path: '/t/:id', component: TournamentLanding, meta: { requiresAuth: false, hideNavbar: true }},
+  // Public Landing Page
   { 
-    path: '/register', 
-    name: 'Register', 
-    component: Register, 
-    meta: { requiresGuest: true, hideNavbar: true } // <--- Hide Nav (Optional, looks cleaner)
+    path: '/t/:id', 
+    component: TournamentLanding, 
+    meta: { requiresAuth: false, hideNavbar: true } 
+  },
+
+  // Auth & Account Creation (New)
+  { 
+    path: '/signup', 
+    component: SignUp, 
+    meta: { requiresGuest: true, hideNavbar: true } 
+  },
+  { 
+    path: '/forgot-password', 
+    component: ForgotPassword, 
+    meta: { requiresGuest: true, hideNavbar: true } 
+  },
+  { 
+    path: '/reset-password', 
+    component: ResetPassword, 
+    meta: { requiresGuest: true, hideNavbar: true } 
+  },
+  { 
+    path: '/verify-email', 
+    component: VerifyEmail, 
+    meta: { requiresAuth: false, hideNavbar: true } 
   },
 
   // Existing Routes
@@ -40,21 +65,6 @@ const routes = [
   { path: '/head-judge', component: HeadJudge, meta: { requiresAuth: true, roles: ['head_judge'] } },
   { path: '/scoreboard', component: Scoreboard },
   { path: '/leaderboard', component: Leaderboard },
-  // 1. Public Registration (New Users)
-  { 
-    path: '/register', 
-    name: 'Register', 
-    component: PublicRegister, 
-    meta: { requiresGuest: true, hideNavbar: true } 
-  },
-
-  // 2. Member Registration (Logged In Users)
-  { 
-    path: '/register/member', 
-    name: 'MemberRegister', 
-    component: MemberRegister, 
-    meta: { requiresAuth: true, roles: ['participant'], hideNavbar: false } 
-  },
   
   // Admin Routes
   { path: '/admin', component: Admin, meta: { requiresAuth: true, roles: ['admin'] } },
@@ -63,18 +73,37 @@ const routes = [
   { path: '/admin/divisions', component: DivisionManagement, meta: { requiresAuth: true, roles: ['admin'] } },
   { path: '/admin/tournaments', component: TournamentManagement, meta: { requiresAuth: true, roles: ['admin'] } },
   { path: '/admin/registrations', component: RegistrationManagement, meta: { requiresAuth: true, roles: ['admin'] } },
+    { 
+    path: '/admin/users', 
+    component: UserManagement, 
+    meta: { requiresAuth: true, roles: ['admin'] } 
+  },
 
   // Auth Routes
-  { path: '/login', name: 'Login', component: Login, meta: { requiresGuest: true } },
-  { path: '/participant-login', name: 'ParticipantLogin', component: ParticipantLogin, meta: { requiresGuest: true } },
+  { path: '/login', name: 'Login', component: Login, meta: { requiresGuest: true, hideNavbar: true } },
+  { path: '/participant-login', name: 'ParticipantLogin', component: ParticipantLogin, meta: { requiresGuest: true, hideNavbar: true } },
+  
+  // Registration Flow
+  { 
+    path: '/register', 
+    name: 'Register', 
+    component: PublicRegister, // Uses the new PublicRegister view
+    meta: { requiresGuest: true, hideNavbar: true } 
+  },
+  { 
+    path: '/register/member', 
+    name: 'MemberRegister', 
+    component: MemberRegister, 
+    meta: { requiresAuth: true, roles: ['participant'], hideNavbar: false } 
+  },
+  
   { path: '/profile', name: 'Profile', component: Profile, meta: { requiresAuth: true, roles: ['participant'] } },
   
   { path: '/', redirect: '/scoreboard' },
 ];
 
 const router = createRouter({
-  // This automatically grabs the base URL ('/scoring/') from your vite config/build command
-  history: createWebHistory(import.meta.env.BASE_URL), 
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 });
 
@@ -125,8 +154,8 @@ router.beforeEach((to, from, next) => {
   if (to.meta.requiresGuest && token) {
     if (role === 'admin') return next({ path: '/admin' });
     if (role === 'head_judge') return next({ path: '/head-judge' });
+    if (role === 'judge_a') return next({ path: '/judge-a1' }); // Default to A1 logic or dashboard
     if (role === 'participant') return next({ path: '/profile' });
-    // ... (other role checks)
     return next({ path: '/scoreboard' });
   }
 

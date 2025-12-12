@@ -1,45 +1,47 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { login, getMe } from '../controllers/authController.js';
+import { 
+  login, 
+  signup, 
+  verifyEmail, 
+  forgotPassword, 
+  resetPassword, 
+  getMe 
+} from '../controllers/authController.js';
 
 const router = express.Router();
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
-// --- Middleware ---
-
-// Middleware to authenticate token
+// --- MIDDLEWARE (Exported for other files to use) ---
 export const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  const token = authHeader && authHeader.split(' ')[1];
 
-  if (!token) {
-    return res.status(401).json({ error: 'Access denied. No token provided.' });
-  }
+  if (!token) return res.status(401).json({ error: 'Access denied. No token.' });
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // Attach user info to request
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
     next();
   } catch (err) {
     res.status(403).json({ error: 'Invalid token' });
   }
 };
 
-// Middleware to authorize based on role
 export const authorizeRole = (role) => (req, res, next) => {
-  // Allow admins to access everything
-  if (req.user.role === 'admin') {
-    return next();
-  }
-  
-  if (req.user.role !== role) {
-    return res.status(403).json({ error: `Access denied. ${role} role required.` });
+  if (req.user.role !== role && req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied.' });
   }
   next();
 };
 
-// --- Routes ---
-
+// --- ROUTES ---
+router.post('/signup', signup);
 router.post('/login', login);
+router.post('/verify-email', verifyEmail);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
+
 router.get('/me', authenticateToken, getMe);
 
 export default router;

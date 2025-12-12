@@ -10,17 +10,19 @@ import {
   removeDivisionFromRegistration,
   validateRegistrationToken,
   updateRegistration,
-  registerAsMember
+  approveRegistrationController,
+  registerAsMember,
+  withdrawRegistration,
+  editRegistration
 } from '../controllers/registrationController.js';
-import { 
-  // ... existing imports
-  approveRegistrationController // <--- Add this import
-} from '../controllers/registrationController.js';
-import { authenticateToken } from './auth.js';
+
+// Import auth middleware
+import { authenticateToken } from './auth.js'; 
 
 const router = express.Router();
 
-// Middleware to check if the user can access the registration
+// Middleware to check if the user can access specific registration details
+// Note: We only use this for strict data like personal info updates by ID
 const checkRegistrationAccess = (req, res, next) => {
   // Allow admins to access all routes
   if (req.user.role === 'admin') {
@@ -37,29 +39,13 @@ const checkRegistrationAccess = (req, res, next) => {
       }
       return res.status(403).json({ error: 'Forbidden: You can only access your own data' });
     }
-    // For GET /registrations/:registration_id/divisions
-    if (req.method === 'GET' && req.url.match(/^\/[0-9]+\/divisions$/)) {
-      const registrationId = parseInt(req.url.split('/')[1], 10);
-      if (registrationId === req.user.userId) {
-        return next();
-      }
-      return res.status(403).json({ error: 'Forbidden: You can only access your own data' });
-    }
-    // For PUT /registrations/:id
-    if (req.method === 'PUT' && req.url.match(/^\/[0-9]+$/)) {
-      const registrationId = parseInt(req.url.split('/')[1], 10);
-      if (registrationId === req.user.userId) {
-        return next();
-      }
-      return res.status(403).json({ error: 'Forbidden: You can only update your own data' });
-    }
   }
 
-  // Default to denying access
+  // Default to denying access for other strictly matched routes
   return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
 };
 
-// Public Routes for Self-Registration
+// Public Routes
 router.post('/', createRegistration);
 router.get('/register/validate-token', (req, res) => {
   const { token } = req.query;
@@ -70,18 +56,27 @@ router.get('/register/validate-token', (req, res) => {
   validateRegistrationToken(req, res);
 });
 
-// Protected Routes (apply access control)
+// --- Protected Routes ---
+
+// List & Details
 router.get('/', checkRegistrationAccess, fetchAllRegistrations);
 router.get('/email/:email', checkRegistrationAccess, fetchRegistrationByEmail);
 router.get('/:id', checkRegistrationAccess, fetchRegistrationById);
+
+// Admin Actions
 router.put('/:id', checkRegistrationAccess, updateRegistration);
 router.put('/:id/status', checkRegistrationAccess, updateRegistrationStatusController);
+router.post('/:id/approve', checkRegistrationAccess, approveRegistrationController);
 
 // Divisions Associated with a Registration
-router.get('/:registration_id/divisions', checkRegistrationAccess, fetchDivisionsForRegistration);
+// FIX: Changed from checkRegistrationAccess to authenticateToken to avoid ID mismatch error
+router.get('/:registration_id/divisions', authenticateToken, fetchDivisionsForRegistration);
 router.post('/division', checkRegistrationAccess, addDivisionToRegistration);
 router.delete('/division', checkRegistrationAccess, removeDivisionFromRegistration);
-router.post('/:id/approve', checkRegistrationAccess, approveRegistrationController);
+
+// --- User Actions (New) ---
 router.post('/join', authenticateToken, registerAsMember);
+router.delete('/:id/withdraw', authenticateToken, withdrawRegistration);
+router.put('/:id/edit', authenticateToken, editRegistration);
 
 export default router;

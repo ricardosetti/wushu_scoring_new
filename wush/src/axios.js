@@ -18,10 +18,15 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      console.log('Credentials expired, redirecting to login...');
+    // Check if the error came from a Login request
+    // If so, we DON'T want to redirect, we want to show the error message on screen
+    const isLoginRequest = error.config && error.config.url && error.config.url.includes('/auth/login');
+
+    if (error.response && error.response.status === 401 && !isLoginRequest) {
+      console.log('Session expired, redirecting to login...');
       localStorage.removeItem('token');
       localStorage.removeItem('role');
+      // Redirect to the generic login page
       window.location.href = '/login';
     }
     return Promise.reject(error);

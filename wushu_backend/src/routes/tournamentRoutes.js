@@ -6,18 +6,19 @@ import {
   fetchTournamentById,
   updateTournamentController,
   deleteTournamentController,
+  fetchOpenTournaments
 } from "../controllers/tournamentsController.js";
 
 const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// Public GET (Allowed by server.js logic)
+// Public
+router.get("/open", fetchOpenTournaments); // <--- New Route
 router.get("/", fetchTournaments);
 router.get("/:id", fetchTournamentById);
 
-// Protected Mutations (Auth handled in server.js or here)
-// Add upload.single('tournament_logo') middleware
+// Protected
 router.post("/", upload.single('tournament_logo'), createTournament);
 router.put("/:id", upload.single('tournament_logo'), updateTournamentController);
 router.delete("/:id", deleteTournamentController);

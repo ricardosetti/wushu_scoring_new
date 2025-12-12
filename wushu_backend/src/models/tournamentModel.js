@@ -26,31 +26,51 @@ export const getTournamentById = async (id) => {
   }
 };
 
+// NEW: Get Open Tournaments for Registration
+export const getOpenTournaments = async () => {
+  const result = await pool.query(`
+    SELECT * FROM tournaments 
+    WHERE registration_start_date <= CURRENT_DATE 
+      AND registration_end_date >= CURRENT_DATE
+    ORDER BY tournament_start_date ASC
+  `);
+  return result.rows;
+};
+
 export const addTournament = async (data) => {
   const {
     tournament_title, tournament_start_date, tournament_end_date,
+    registration_start_date, registration_end_date, // <--- New fields
     tournament_hours, tournament_contact, tournament_address,
     tournament_city, tournament_state, tournament_country,
     tournament_email, is_active,
-    color_primary, color_background, details_content, tournament_logo
+    color_primary, color_background, details_content, tournament_logo,
+    judges_config
   } = data;
 
   try {
+    const config = judges_config || { A1: true, A2: true, B1: true, B2: true };
+
     const result = await pool.query(`
       INSERT INTO tournaments (
         tournament_title, tournament_start_date, tournament_end_date,
+        registration_start_date, registration_end_date,
         tournament_hours, tournament_contact, tournament_address,
         tournament_city, tournament_state, tournament_country,
         tournament_email, is_active,
-        color_primary, color_background, details_content, tournament_logo
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        color_primary, color_background, details_content, tournament_logo,
+        judges_config
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING *
     `, [
-      tournament_title, tournament_start_date || null, tournament_end_date || null,
+      tournament_title, 
+      tournament_start_date || null, tournament_end_date || null,
+      registration_start_date || null, registration_end_date || null,
       tournament_hours || null, tournament_contact || null, tournament_address || null,
       tournament_city || null, tournament_state || null, tournament_country || null,
       tournament_email || null, is_active || false,
-      color_primary || '#1E40AF', color_background || '#F3F4F6', details_content || '', tournament_logo || null
+      color_primary || '#1E40AF', color_background || '#F3F4F6', details_content || '', tournament_logo || null,
+      config
     ]);
     return result.rows[0];
   } catch (err) {
@@ -61,10 +81,12 @@ export const addTournament = async (data) => {
 export const updateTournament = async (id, data) => {
   const {
     tournament_title, tournament_start_date, tournament_end_date,
+    registration_start_date, registration_end_date, // <--- New fields
     tournament_hours, tournament_contact, tournament_address,
     tournament_city, tournament_state, tournament_country,
     tournament_email, is_active,
-    color_primary, color_background, details_content, tournament_logo
+    color_primary, color_background, details_content, tournament_logo,
+    judges_config
   } = data;
 
   const client = await pool.connect();
@@ -76,20 +98,21 @@ export const updateTournament = async (id, data) => {
        await client.query("UPDATE tournament_details SET value = 0 WHERE argument IN ('Active_ID', 'OnDeck_ID')");
     }
 
-    // Build query dynamically to handle optional logo update
-    // If tournament_logo is undefined (not sent), we keep the old one
     let logoQueryPart = "";
     let params = [
-      tournament_title, tournament_start_date || null, tournament_end_date || null,
+      tournament_title, 
+      tournament_start_date || null, tournament_end_date || null,
+      registration_start_date || null, registration_end_date || null,
       tournament_hours || null, tournament_contact || null, tournament_address || null,
       tournament_city || null, tournament_state || null, tournament_country || null,
       tournament_email || null, is_active || false,
       color_primary || '#1E40AF', color_background || '#F3F4F6', details_content || '',
+      judges_config || { A1: true, A2: true, B1: true, B2: true },
       id
     ];
 
     if (tournament_logo !== undefined) {
-      logoQueryPart = ", tournament_logo = $16";
+      logoQueryPart = ", tournament_logo = $19"; // Index 19 now
       params.push(tournament_logo);
     }
 
@@ -97,13 +120,15 @@ export const updateTournament = async (id, data) => {
       UPDATE tournaments
       SET
         tournament_title = $1, tournament_start_date = $2, tournament_end_date = $3,
-        tournament_hours = $4, tournament_contact = $5, tournament_address = $6,
-        tournament_city = $7, tournament_state = $8, tournament_country = $9,
-        tournament_email = $10, is_active = $11, 
-        color_primary = $12, color_background = $13, details_content = $14,
+        registration_start_date = $4, registration_end_date = $5,
+        tournament_hours = $6, tournament_contact = $7, tournament_address = $8,
+        tournament_city = $9, tournament_state = $10, tournament_country = $11,
+        tournament_email = $12, is_active = $13, 
+        color_primary = $14, color_background = $15, details_content = $16,
+        judges_config = $17,
         updated_at = CURRENT_TIMESTAMP
         ${logoQueryPart}
-      WHERE tournament_id = $15
+      WHERE tournament_id = $18
       RETURNING *
     `, params);
 

@@ -1,18 +1,16 @@
 import pool from './db.js';
 
-// 1. Add Registration (Links an existing User to a Tournament)
 export const addRegistration = async (data, client) => {
   const {
-    user_id,          // Link to the Users table (Identity)
-    tournament_id,    // Link to the Tournaments table (Event)
-    school_id,        // School for this specific event
-    participant_rank  // Rank can change over time, so we store it per registration
+    user_id,
+    tournament_id,
+    school_id,
+    participant_rank,
+    height_feet, height_inches, weight // <--- New fields
   } = data;
 
-  // Use the provided client (for transactions) or the global pool
   const db = client || pool;
 
-  // Check if this user is already registered for this specific tournament
   const existing = await db.query(
     "SELECT id FROM registrations WHERE user_id = $1 AND tournament_id = $2",
     [user_id, tournament_id]
@@ -22,22 +20,25 @@ export const addRegistration = async (data, client) => {
     throw new Error("User is already registered for this tournament.");
   }
 
-  // Insert the registration record (Status 0 = Pending)
   const result = await db.query(
     `
     INSERT INTO registrations (
-      user_id, tournament_id, school_id, participant_rank, status, created_at
-    ) VALUES ($1, $2, $3, $4, 0, CURRENT_TIMESTAMP)
+      user_id, tournament_id, school_id, participant_rank, 
+      height_feet, height_inches, weight,
+      status, created_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, 0, CURRENT_TIMESTAMP)
     RETURNING *;
     `,
-    [user_id, tournament_id, school_id, participant_rank]
+    [
+      user_id, tournament_id, school_id, participant_rank,
+      height_feet || null, height_inches || null, weight || null
+    ]
   );
 
   return result.rows[0];
 };
 
 // 2. Get All Registrations (For Admin Dashboard)
-// We JOIN the 'users' table so the Admin sees the actual names, not just IDs.
 export const getAllRegistrations = async () => {
   const result = await pool.query(`
     SELECT r.*, 
@@ -53,19 +54,13 @@ export const getAllRegistrations = async () => {
   return result.rows;
 };
 
-// 3. Get Registration by Email (For Profile View)
-// This reconstructs the full profile object by joining Users + Registrations
+// 3. Get Registration by Email (Legacy support)
 export const getRegistrationByEmail = async (email) => {
   const result = await pool.query(`
     SELECT r.*,
-           u.first_name, u.middle_name, u.last_name, u.email, u.birthdate, 
-           u.height_feet, u.height_inches, u.weight, u.gender, u.phone,
-           u.emergency_contact_name, u.emergency_contact_phone,
-           u.street, u.city, u.state, u.country, u.zip_code,
-           s.school_name
+           u.first_name, u.last_name, u.email
     FROM registrations r
     JOIN users u ON r.user_id = u.id
-    LEFT JOIN schools s ON r.school_id = s.id
     WHERE u.email = $1
     ORDER BY r.created_at DESC
     LIMIT 1
@@ -74,7 +69,7 @@ export const getRegistrationByEmail = async (email) => {
   return result.rows[0] || null;
 };
 
-// 4. Get Registration By ID (Admin Detail View)
+// 4. Get Registration By ID
 export const getRegistrationById = async (id) => {
   const result = await pool.query(`
     SELECT r.*, 
@@ -88,7 +83,7 @@ export const getRegistrationById = async (id) => {
   return result.rows[0] || null;
 };
 
-// 5. Update Status (Approve/Reject)
+// 5. Update Status
 export const updateRegistrationStatus = async (id, status) => {
   const result = await pool.query(
     'UPDATE registrations SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
@@ -101,7 +96,6 @@ export const updateRegistrationStatus = async (id, status) => {
 };
 
 // 6. Validate School Token
-// Ensures the school is allowed in the ACTIVE tournament
 export const getRegistrationByToken = async (token) => {
   const result = await pool.query(
     `SELECT s.id, s.school_name, s.school_address, s.school_contact, s.school_phone 
@@ -116,21 +110,45 @@ export const getRegistrationByToken = async (token) => {
   return result.rows[0] || null;
 };
 
-// NEW: Get all registrations for a specific user
+// 7. NEW: Get Registrations By User (Needed for Profile Page)
+// This was missing and causing your Profile to crash/blank out
 export const getRegistrationsByUser = async (userId) => {
   const result = await pool.query(`
     SELECT r.*, 
            t.tournament_title, t.tournament_start_date, t.tournament_city, t.is_active,
            s.school_name,
-           -- Fetch Results Data using the new link
            tr.total_score, tr.rank, tr.score_breakdown
     FROM registrations r
     JOIN tournaments t ON r.tournament_id = t.tournament_id
     LEFT JOIN schools s ON r.school_id = s.id
-    -- Join Results via the participant_id stored in registration
     LEFT JOIN tournament_results tr ON r.participant_id = tr.participant_id
     WHERE r.user_id = $1
     ORDER BY t.tournament_start_date DESC
   `, [userId]);
   return result.rows;
+};
+
+export const deleteRegistration = async (id, userId) => {
+  // Ensure the user owns the registration before deleting
+  const result = await pool.query(
+    'DELETE FROM registrations WHERE id = $1 AND user_id = $2 RETURNING *',
+    [id, userId]
+  );
+  return result.rows[0] || null;
+};
+
+// NEW: Update Registration (Edit Details)
+export const updateRegistrationDetails = async (id, userId, data) => {
+  const { school_id, participant_rank, height_feet, height_inches, weight } = data;
+  
+  const result = await pool.query(`
+    UPDATE registrations 
+    SET school_id = $1, participant_rank = $2, 
+        height_feet = $3, height_inches = $4, weight = $5,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = $6 AND user_id = $7
+    RETURNING *
+  `, [school_id, participant_rank, height_feet, height_inches, weight, id, userId]);
+  
+  return result.rows[0] || null;
 };
