@@ -128,6 +128,17 @@
               
               <div><label class="block text-sm font-bold text-gray-700 mb-1">Start Date</label><input v-model="form.tournament_start_date" type="date" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" /></div>
               <div><label class="block text-sm font-bold text-gray-700 mb-1">End Date</label><input v-model="form.tournament_end_date" type="date" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" /></div>
+              <div class="md:col-span-2 grid grid-cols-2 gap-6 border-t pt-4 mt-2">
+                <div class="md:col-span-2 text-sm font-bold text-gray-700">Registration Window (When athletes can sign up)</div>
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">Registration Opens</label>
+                <input v-model="form.registration_start_date" type="date" class="w-full border border-gray-300 rounded-lg p-2.5" />
+              </div>
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">Registration Closes</label>
+                <input v-model="form.registration_end_date" type="date" class="w-full border border-gray-300 rounded-lg p-2.5" />
+              </div>
+            </div>
 
               <div><label class="block text-sm font-bold text-gray-700 mb-1">Email Contact</label><input v-model="form.tournament_email" type="email" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" /></div>
               <div><label class="block text-sm font-bold text-gray-700 mb-1">Phone Contact</label><input v-model="form.tournament_contact" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" /></div>
@@ -336,6 +347,8 @@ const editTournament = (t) => {
   // Dates
   if (form.value.tournament_start_date) form.value.tournament_start_date = form.value.tournament_start_date.split('T')[0];
   if (form.value.tournament_end_date) form.value.tournament_end_date = form.value.tournament_end_date.split('T')[0];
+  if (form.value.registration_start_date) form.value.registration_start_date = form.value.registration_start_date.split('T')[0];
+  if (form.value.registration_end_date) form.value.registration_end_date = form.value.registration_end_date.split('T')[0];
   
   // Design Defaults
   if (!form.value.color_primary) form.value.color_primary = '#1E40AF';

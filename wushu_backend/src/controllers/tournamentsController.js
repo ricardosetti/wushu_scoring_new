@@ -4,6 +4,7 @@ import {
   addTournament,
   updateTournament,
   deleteTournament,
+  getOpenTournaments
 } from "../models/tournamentModel.js";
 
 export const fetchTournaments = async (req, res) => {
@@ -28,23 +29,29 @@ export const fetchTournamentById = async (req, res) => {
   }
 };
 
-export const createTournament = async (req, res) => {
-  // 1. Get text fields from body
-  const data = req.body;
+export const fetchOpenTournaments = async (req, res) => {
+  try {
+    const tournaments = await getOpenTournaments();
+    res.json(tournaments);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
-  // 2. Handle File Upload (if sent)
-  // Multer stores the file in req.file. We convert the buffer to a Base64 string.
+export const createTournament = async (req, res) => {
+  const data = req.body;
   if (req.file) {
     const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     data.tournament_logo = base64;
   }
+  
+  // Ensure dates are null if empty string
+  if (!data.registration_start_date) data.registration_start_date = null;
+  if (!data.registration_end_date) data.registration_end_date = null;
 
-  if (!data.tournament_title) {
-    return res.status(400).json({ error: "Tournament title is required" });
-  }
+  if (!data.tournament_title) return res.status(400).json({ error: "Title required" });
 
   try {
-    // Pass the entire data object (including logo and colors) to the model
     const tournament = await addTournament(data);
     res.status(201).json(tournament);
   } catch (err) {
@@ -55,24 +62,19 @@ export const createTournament = async (req, res) => {
 export const updateTournamentController = async (req, res) => {
   const { id } = req.params;
   const data = req.body;
-
-  // 1. Handle File Upload (if sent)
+  
   if (req.file) {
     const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     data.tournament_logo = base64;
   }
 
-  if (!data.tournament_title) {
-    return res.status(400).json({ error: "Tournament title is required" });
-  }
+  // Ensure dates are null if empty string
+  if (!data.registration_start_date) data.registration_start_date = null;
+  if (!data.registration_end_date) data.registration_end_date = null;
 
   try {
-    // Pass ID and Data object to model
     const tournament = await updateTournament(id, data);
-    
-    if (!tournament) {
-      return res.status(404).json({ error: "Tournament not found" });
-    }
+    if (!tournament) return res.status(404).json({ error: "Not found" });
     res.json(tournament);
   } catch (err) {
     res.status(500).json({ error: err.message });

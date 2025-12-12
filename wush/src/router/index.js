@@ -19,6 +19,7 @@ import Profile from '../views/Profile.vue';
 import TournamentLanding from '../views/TournamentLanding.vue'; 
 import PublicRegister from '../views/PublicRegister.vue';
 import MemberRegister from '../views/MemberRegister.vue';
+import UserManagement from '../views/UserManagement.vue'; // <--- Import
 
 // NEW AUTH VIEWS
 import SignUp from '../views/SignUp.vue';
@@ -72,6 +73,11 @@ const routes = [
   { path: '/admin/divisions', component: DivisionManagement, meta: { requiresAuth: true, roles: ['admin'] } },
   { path: '/admin/tournaments', component: TournamentManagement, meta: { requiresAuth: true, roles: ['admin'] } },
   { path: '/admin/registrations', component: RegistrationManagement, meta: { requiresAuth: true, roles: ['admin'] } },
+    { 
+    path: '/admin/users', 
+    component: UserManagement, 
+    meta: { requiresAuth: true, roles: ['admin'] } 
+  },
 
   // Auth Routes
   { path: '/login', name: 'Login', component: Login, meta: { requiresGuest: true, hideNavbar: true } },

@@ -1,12 +1,12 @@
 import pool from './db.js';
 
-// 1. Add Registration (Links an existing User to a Tournament)
 export const addRegistration = async (data, client) => {
   const {
     user_id,
     tournament_id,
     school_id,
-    participant_rank
+    participant_rank,
+    height_feet, height_inches, weight // <--- New fields
   } = data;
 
   const db = client || pool;
@@ -23,11 +23,16 @@ export const addRegistration = async (data, client) => {
   const result = await db.query(
     `
     INSERT INTO registrations (
-      user_id, tournament_id, school_id, participant_rank, status, created_at
-    ) VALUES ($1, $2, $3, $4, 0, CURRENT_TIMESTAMP)
+      user_id, tournament_id, school_id, participant_rank, 
+      height_feet, height_inches, weight,
+      status, created_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, 0, CURRENT_TIMESTAMP)
     RETURNING *;
     `,
-    [user_id, tournament_id, school_id, participant_rank]
+    [
+      user_id, tournament_id, school_id, participant_rank,
+      height_feet || null, height_inches || null, weight || null
+    ]
   );
 
   return result.rows[0];
@@ -121,4 +126,29 @@ export const getRegistrationsByUser = async (userId) => {
     ORDER BY t.tournament_start_date DESC
   `, [userId]);
   return result.rows;
+};
+
+export const deleteRegistration = async (id, userId) => {
+  // Ensure the user owns the registration before deleting
+  const result = await pool.query(
+    'DELETE FROM registrations WHERE id = $1 AND user_id = $2 RETURNING *',
+    [id, userId]
+  );
+  return result.rows[0] || null;
+};
+
+// NEW: Update Registration (Edit Details)
+export const updateRegistrationDetails = async (id, userId, data) => {
+  const { school_id, participant_rank, height_feet, height_inches, weight } = data;
+  
+  const result = await pool.query(`
+    UPDATE registrations 
+    SET school_id = $1, participant_rank = $2, 
+        height_feet = $3, height_inches = $4, weight = $5,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = $6 AND user_id = $7
+    RETURNING *
+  `, [school_id, participant_rank, height_feet, height_inches, weight, id, userId]);
+  
+  return result.rows[0] || null;
 };

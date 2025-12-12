@@ -30,7 +30,9 @@
       >
         Manage Participants (Roster)
       </button>
-      
+      <button @click="$router.push('/admin/users')" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 mr-2 mb-2">
+        User Administration
+      </button>      
       <button
         @click="$router.push('/admin/divisions')"
         class="bg-blue-500 text-white px-6 py-4 rounded shadow hover:bg-blue-600 text-lg font-semibold"

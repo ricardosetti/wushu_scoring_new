@@ -7,6 +7,8 @@ import {
   updateRegistrationStatus,
   getRegistrationById,
   getRegistrationByToken,
+  deleteRegistration, 
+  updateRegistrationDetails 
 } from '../models/registrationModel.js';
 import { createUser, getUserByEmail } from '../models/userModel.js'; // Import the User Model
 import {
@@ -327,8 +329,11 @@ await client.query(`
 
 export const registerAsMember = async (req, res) => {
   try {
-    const userId = req.user.userId; // Extracted from JWT Token
-    const { tournament_id, school_id, participant_rank, divisions } = req.body;
+    const userId = req.user.userId; 
+    const { 
+      tournament_id, school_id, participant_rank, divisions,
+      height_feet, height_inches, weight // <--- Extract new fields
+    } = req.body;
 
     if (!tournament_id || !school_id) {
       return res.status(400).json({ error: 'Tournament and School are required.' });
@@ -342,20 +347,18 @@ export const registerAsMember = async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // 1. Create Registration linked to existing User ID
       const registration = await addRegistration({
         user_id: userId,
         tournament_id,
         school_id,
-        participant_rank
+        participant_rank,
+        height_feet, height_inches, weight // <--- Pass them
       }, client);
 
-      // 2. Add Divisions
       for (const divisionId of divisions) {
         await addRegistrationDivision(registration.id, divisionId, client);
       }
 
-      // 3. Return success
       const associatedDivisions = await getDivisionsForRegistration(registration.id, client);
       
       await client.query('COMMIT');
@@ -363,7 +366,6 @@ export const registerAsMember = async (req, res) => {
 
     } catch (err) {
       await client.query('ROLLBACK');
-      // Check for duplicate registration error
       if (err.message.includes('already registered')) {
         return res.status(409).json({ error: 'You are already registered for this tournament.' });
       }
@@ -373,6 +375,70 @@ export const registerAsMember = async (req, res) => {
     }
   } catch (err) {
     console.error('Member registration error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+export const withdrawRegistration = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.userId;
+
+  try {
+    // Check status first
+    const check = await pool.query('SELECT status FROM registrations WHERE id = $1', [id]);
+    if (check.rows.length > 0 && check.rows[0].status === 1) {
+      return res.status(403).json({ error: "Cannot withdraw from an approved registration. Contact admin." });
+    }
+
+    const deleted = await deleteRegistration(id, userId);
+    if (!deleted) return res.status(404).json({ error: "Registration not found or unauthorized." });
+
+    res.json({ message: "Withdrawn successfully." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// NEW: Edit Registration
+export const editRegistration = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.userId;
+  const { school_id, participant_rank, height_feet, height_inches, weight, divisions } = req.body;
+
+  try {
+    // Check status first
+    const check = await pool.query('SELECT status FROM registrations WHERE id = $1', [id]);
+    if (check.rows.length > 0 && check.rows[0].status === 1) {
+      return res.status(403).json({ error: "Cannot edit an approved registration. Contact admin." });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // 1. Update Details
+      await updateRegistrationDetails(id, userId, {
+        school_id, participant_rank, height_feet, height_inches, weight
+      });
+
+      // 2. Update Divisions (Delete all & Re-add)
+      // Only if divisions array is provided
+      if (divisions && Array.isArray(divisions)) {
+        await client.query('DELETE FROM registrations_divisions WHERE registration_id = $1', [id]);
+        for (const divId of divisions) {
+           await addRegistrationDivision(id, divId, client);
+        }
+      }
+
+      await client.query('COMMIT');
+      res.json({ message: "Registration updated." });
+
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
