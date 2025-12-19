@@ -18,6 +18,7 @@ import authRoutes, { authenticateToken } from './routes/auth.js';
 import registrationRoutes from './routes/registrationRoutes.js';
 import tournamentRoutes from './routes/tournamentRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import bracketRoutes from './routes/bracketRoutes.js'; // <--- Import
 
 // Specific Controllers needed for public access
 import { fetchParticipants, fetchParticipantById } from './controllers/participantsController.js';
@@ -129,6 +130,8 @@ app.use('/tournament-details', authenticateToken, tournamentDetailsRoutes); // P
 app.use('/deductions', authenticateToken, deductionRoutes);
 app.use('/participant-deductions', authenticateToken, participantDeductionRoutes);
 app.use('/published-scores', authenticateToken, publishedScoresRoutes); // POST (publish)
+
+app.use('/brackets', bracketRoutes); // <--- Mount bracket routes
 
 
 // ==========================================

@@ -19,7 +19,11 @@ import Profile from '../views/Profile.vue';
 import TournamentLanding from '../views/TournamentLanding.vue'; 
 import PublicRegister from '../views/PublicRegister.vue';
 import MemberRegister from '../views/MemberRegister.vue';
-import UserManagement from '../views/UserManagement.vue'; // <--- Import
+import UserManagement from '../views/UserManagement.vue';
+
+
+// NEW IMPORT
+import RosterManagement from '../views/RosterManagement.vue';
 
 // NEW AUTH VIEWS
 import SignUp from '../views/SignUp.vue';
@@ -35,7 +39,7 @@ const routes = [
     meta: { requiresAuth: false, hideNavbar: true } 
   },
 
-  // Auth & Account Creation (New)
+  // Auth & Account Creation
   { 
     path: '/signup', 
     component: SignUp, 
@@ -73,11 +77,10 @@ const routes = [
   { path: '/admin/divisions', component: DivisionManagement, meta: { requiresAuth: true, roles: ['admin'] } },
   { path: '/admin/tournaments', component: TournamentManagement, meta: { requiresAuth: true, roles: ['admin'] } },
   { path: '/admin/registrations', component: RegistrationManagement, meta: { requiresAuth: true, roles: ['admin'] } },
-    { 
-    path: '/admin/users', 
-    component: UserManagement, 
-    meta: { requiresAuth: true, roles: ['admin'] } 
-  },
+  { path: '/admin/users', component: UserManagement, meta: { requiresAuth: true, roles: ['admin'] } },
+  
+  // NEW ROUTE: Roster Management
+  { path: '/admin/roster', component: RosterManagement, meta: { requiresAuth: true, roles: ['admin'] } },
 
   // Auth Routes
   { path: '/login', name: 'Login', component: Login, meta: { requiresGuest: true, hideNavbar: true } },
@@ -87,7 +90,7 @@ const routes = [
   { 
     path: '/register', 
     name: 'Register', 
-    component: PublicRegister, // Uses the new PublicRegister view
+    component: PublicRegister, 
     meta: { requiresGuest: true, hideNavbar: true } 
   },
   { 
@@ -154,7 +157,7 @@ router.beforeEach((to, from, next) => {
   if (to.meta.requiresGuest && token) {
     if (role === 'admin') return next({ path: '/admin' });
     if (role === 'head_judge') return next({ path: '/head-judge' });
-    if (role === 'judge_a') return next({ path: '/judge-a1' }); // Default to A1 logic or dashboard
+    if (role === 'judge_a') return next({ path: '/judge-a1' }); 
     if (role === 'participant') return next({ path: '/profile' });
     return next({ path: '/scoreboard' });
   }
